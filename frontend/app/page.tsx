@@ -1,103 +1,272 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { Upload, FileText, CheckCircle, Clock, XCircle, Eye, Download, Star, Trash2 } from "lucide-react";
+import Link from "next/link";
+
+interface Resume {
+  id: string;
+  name: string;
+  uploadDate: string;
+  status: "pending" | "approved" | "needs_revision" | "rejected";
+  score?: number;
+  notes?: string;
+  fileSize: string;
+}
+
+const mockResumes: Resume[] = [
+  {
+    id: "1",
+    name: "john_doe_resume.pdf",
+    uploadDate: "2024-01-15",
+    status: "approved",
+    score: 85,
+    notes: "Strong technical background, excellent formatting",
+    fileSize: "245 KB"
+  },
+  {
+    id: "2",
+    name: "jane_smith_cv.pdf",
+    uploadDate: "2024-01-14",
+    status: "needs_revision",
+    score: 72,
+    notes: "Good experience but needs better project descriptions",
+    fileSize: "189 KB"
+  },
+  {
+    id: "3",
+    name: "alex_johnson_resume.pdf",
+    uploadDate: "2024-01-13",
+    status: "pending",
+    fileSize: "267 KB"
+  }
+];
+
+export default function ResumeDashboard() {
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [resumes, setResumes] = useState<Resume[]>(mockResumes);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      handleFile(files[0]);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  };
+
+  const handleFile = (file: File) => {
+    if (file.type === "application/pdf") {
+      setSelectedFile(file);
+    } else {
+      alert("Please upload a PDF file only.");
+    }
+  };
+
+  const getStatusIcon = (status: Resume["status"]) => {
+    switch (status) {
+      case "approved":
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case "needs_revision":
+        return <Clock className="w-5 h-5 text-yellow-500" />;
+      case "rejected":
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      default:
+        return <Clock className="w-5 h-5 text-gray-400" />;
+    }
+  };
+
+  const getStatusBadge = (status: Resume["status"]) => {
+    const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
+    switch (status) {
+      case "approved":
+        return `${baseClasses} bg-green-100 text-green-800`;
+      case "needs_revision":
+        return `${baseClasses} bg-yellow-100 text-yellow-800`;
+      case "rejected":
+        return `${baseClasses} bg-red-100 text-red-800`;
+      default:
+        return `${baseClasses} bg-gray-100 text-gray-800`;
+    }
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <FileText className="w-8 h-8 text-blue-600" />
+                <h1 className="text-xl font-bold text-gray-900">Resume Platform</h1>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/admin"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Admin Dashboard
+              </Link>
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-medium text-sm">JD</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">My Resume Dashboard</h2>
+          <p className="text-gray-600">Upload your resume and track its review status</p>
+        </div>
+
+        {/* Upload Section */}
+        <div className="bg-white rounded-xl shadow-sm border mb-8">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload New Resume</h3>
+            
+            <div
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
+                dragActive
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-300 hover:border-gray-400"
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-lg font-medium text-gray-900 mb-2">
+                Drop your resume here, or{" "}
+                <label className="text-blue-600 cursor-pointer hover:text-blue-700">
+                  browse
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf"
+                    onChange={handleFileInput}
+                  />
+                </label>
+              </p>
+              <p className="text-sm text-gray-500">PDF files only, up to 10MB</p>
+            </div>
+
+            {selectedFile && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                      Upload Resume
+                    </button>
+                    <button
+                      onClick={() => setSelectedFile(null)}
+                      className="p-2 text-gray-400 hover:text-gray-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Resume List */}
+        <div className="bg-white rounded-xl shadow-sm border">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Your Resumes</h3>
+          </div>
+
+          <div className="divide-y divide-gray-200">
+            {resumes.map((resume) => (
+              <div key={resume.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4 flex-1">
+                    <div className="flex-shrink-0">
+                      <FileText className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-3 mb-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {resume.name}
+                        </p>
+                        <span className={getStatusBadge(resume.status)}>
+                          {resume.status.replace("_", " ").toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <span>Uploaded {new Date(resume.uploadDate).toLocaleDateString()}</span>
+                        <span>{resume.fileSize}</span>
+                        {resume.score && (
+                          <div className="flex items-center space-x-1">
+                            <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                            <span className="font-medium">{resume.score}/100</span>
+                          </div>
+                        )}
+                      </div>
+                      {resume.notes && (
+                        <p className="text-xs text-gray-600 mt-1 italic">"{resume.notes}"</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    {getStatusIcon(resume.status)}
+                    <div className="flex items-center space-x-2">
+                      <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {resumes.length === 0 && (
+            <div className="p-12 text-center">
+              <FileText className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+              <p className="text-gray-500">No resumes uploaded yet</p>
+              <p className="text-sm text-gray-400">Upload your first resume to get started</p>
+            </div>
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
