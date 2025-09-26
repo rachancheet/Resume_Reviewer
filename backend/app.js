@@ -15,7 +15,21 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static("uploads"));
+
+app.get("/resumes/:id/file", authMiddleware("user"), async (req, res) => {
+	const { id } = req.params;
+  
+	const { rows } = await pool.query("SELECT * FROM resumes WHERE id=$1", [id]);
+	if (rows.length === 0) return res.status(404).json({ error: "Not found" });
+  
+	const resume = rows[0];
+	if (resume.user_id !== req.user.id && req.user.role !== "admin") {
+	  return res.status(403).json({ error: "Forbidden" });
+	}
+  
+	res.sendFile(path.resolve(resume.file_url));
+  });
+
 
 const storage = multer.diskStorage({
   destination: "./uploads",
