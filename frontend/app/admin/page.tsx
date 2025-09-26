@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   FileText, 
   CheckCircle, 
@@ -11,133 +11,182 @@ import {
   Star, 
   Users, 
   TrendingUp,
-  Filter,
   Search,
   ChevronDown,
-  MessageSquare,
-  Calendar,
-  Award,
-  BarChart3
+  LogOut
 } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
+import { ResumeService } from "@/lib/resume-service";
+import type { Resume } from "@/lib/api-client";
+import ReviewModal from "@/components/ReviewModal";
 
-interface Resume {
-  id: string;
-  candidateName: string;
-  candidateEmail: string;
-  fileName: string;
-  uploadDate: string;
-  status: "pending" | "approved" | "needs_revision" | "rejected";
-  score?: number;
-  notes?: string;
-  fileSize: string;
-  reviewedBy?: string;
-  reviewDate?: string;
+// Extended Resume interface for admin view
+interface AdminResumeView extends Resume {
+  user?: { email: string };
 }
 
-// Mock data for demonstration
-const mockResumes: Resume[] = [
-  {
-    id: "1",
-    candidateName: "John Doe",
-    candidateEmail: "john.doe@email.com",
-    fileName: "john_doe_resume.pdf",
-    uploadDate: "2024-01-15",
-    status: "pending",
-    fileSize: "245 KB"
-  },
-  {
-    id: "2",
-    candidateName: "Jane Smith",
-    candidateEmail: "jane.smith@email.com",
-    fileName: "jane_smith_cv.pdf",
-    uploadDate: "2024-01-14",
-    status: "approved",
-    score: 85,
-    notes: "Strong technical background, excellent formatting. Great experience in React and Node.js",
-    fileSize: "189 KB",
-    reviewedBy: "Admin",
-    reviewDate: "2024-01-16"
-  },
-  {
-    id: "3",
-    candidateName: "Alex Johnson",
-    candidateEmail: "alex.johnson@email.com",
-    fileName: "alex_johnson_resume.pdf",
-    uploadDate: "2024-01-13",
-    status: "needs_revision",
-    score: 72,
-    notes: "Good experience but needs better project descriptions and clearer skill section",
-    fileSize: "267 KB",
-    reviewedBy: "Admin",
-    reviewDate: "2024-01-15"
-  },
-  {
-    id: "4",
-    candidateName: "Sarah Wilson",
-    candidateEmail: "sarah.wilson@email.com",
-    fileName: "sarah_wilson_resume.pdf",
-    uploadDate: "2024-01-12",
-    status: "rejected",
-    score: 45,
-    notes: "Insufficient experience for the position requirements",
-    fileSize: "156 KB",
-    reviewedBy: "Admin",
-    reviewDate: "2024-01-14"
-  },
-  {
-    id: "5",
-    candidateName: "Mike Chen",
-    candidateEmail: "mike.chen@email.com",
-    fileName: "mike_chen_cv.pdf",
-    uploadDate: "2024-01-11",
-    status: "approved",
-    score: 92,
-    notes: "Excellent candidate with strong portfolio and relevant experience",
-    fileSize: "298 KB",
-    reviewedBy: "Admin",
-    reviewDate: "2024-01-13"
-  }
-];
-
-const leaderboardData = [
-  { rank: 1, name: "Mike Chen", score: 92, status: "approved" },
-  { rank: 2, name: "Jane Smith", score: 85, status: "approved" },
-  { rank: 3, name: "Alex Johnson", score: 72, status: "needs_revision" },
-  { rank: 4, name: "Sarah Wilson", score: 45, status: "rejected" }
-];
 
 export default function AdminDashboard() {
-  const [resumes, setResumes] = useState<Resume[]>(mockResumes);
-  const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
+  const { user, loading: authLoading, signOut, isAdmin } = useAuth();
+  const [resumes, setResumes] = useState<AdminResumeView[]>([]);
+  const [selectedResume, setSelectedResume] = useState<AdminResumeView | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<"resumes" | "leaderboard">("resumes");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [resumeStats, setResumeStats] = useState({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    needsRevision: 0,
+    rejected: 0,
+    avgScore: 0
+  });
 
-  const handleStatusUpdate = (resumeId: string, newStatus: Resume["status"], score?: number, notes?: string) => {
-    setResumes(prev => prev.map(resume => 
-      resume.id === resumeId 
-        ? { 
-            ...resume, 
-            status: newStatus, 
-            score, 
-            notes,
-            reviewedBy: "Admin",
-            reviewDate: new Date().toISOString().split('T')[0]
-          }
-        : resume
-    ));
-    setShowReviewModal(false);
-    setSelectedResume(null);
+  useEffect(() => {
+    if (user) {
+      loadAllResumes();
+      loadStats();
+    }
+  }, [user]);
+
+  const loadAllResumes = async () => {
+    setLoading(true);
+    const { resumes: allResumes, error } = await ResumeService.getAllResumes();
+    
+    if (error) {
+      setError(error);
+    } else {
+      setResumes(allResumes || []);
+    }
+    
+    setLoading(false);
+  };
+
+  const loadStats = async () => {
+    const { stats: resumeStats, error } = await ResumeService.getResumeStats();
+    
+    if (error) {
+      setError(error);
+    } else if (resumeStats) {
+      setResumeStats({
+        total: resumeStats.total,
+        pending: resumeStats.pending,
+        approved: resumeStats.approved,
+        needsRevision: resumeStats.needs_revision,
+        rejected: resumeStats.rejected,
+        avgScore: resumeStats.avg_score
+      });
+    }
+  };
+
+  const handleStatusUpdate = async (resumeId: string, newStatus: Resume["status"], score?: number, notes?: string) => {
+    try {
+      const { resume, error } = await ResumeService.updateResumeStatus(resumeId, newStatus, score, notes);
+      
+      if (error) {
+        setError(error);
+        return;
+      }
+
+      // Update local state
+      setResumes(prev => prev.map(r => 
+        r.id === resumeId ? { ...r, ...resume } : r
+      ));
+      
+      // Refresh stats
+      await loadStats();
+      
+      setShowReviewModal(false);
+      setSelectedResume(null);
+    } catch (error) {
+      setError('Failed to update resume status');
+    }
+  };
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      setError(error.message);
+    }
+  };
+
+  const handleViewResume = async (resume: AdminResumeView) => {
+    const { error } = await ResumeService.viewResumeFile(resume.id);
+    if (error) {
+      setError(error);
+    }
+  };
+
+  const handleDownloadResume = async (resume: AdminResumeView) => {
+    const candidateEmail = resume.user?.email || resume.email || 'unknown';
+    const filename = `resume_${candidateEmail}_${new Date(resume.created_at).toLocaleDateString().replace(/\//g, '_')}.pdf`;
+    const { error } = await ResumeService.downloadResumeFile(resume.id, filename);
+    if (error) {
+      setError(error);
+    }
   };
 
   const filteredResumes = resumes.filter(resume => {
     const matchesStatus = statusFilter === "all" || resume.status === statusFilter;
-    const matchesSearch = resume.candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         resume.candidateEmail.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (resume.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
+
+  // Show loading screen if authenticating
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <FileText className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Admin Access Required</h1>
+          <p className="text-gray-600 mb-6">Please sign in to access the admin dashboard</p>
+          <Link
+            href="/login"
+            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (user && !isAdmin()) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <XCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-600 mb-6">You don't have admin privileges to access this dashboard</p>
+          <div className="space-y-3">
+            <Link
+              href="/"
+              className="block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Go to Resume Dashboard
+            </Link>
+            <button
+              onClick={handleSignOut}
+              className="block w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusIcon = (status: Resume["status"]) => {
     switch (status) {
@@ -194,8 +243,25 @@ export default function AdminDashboard() {
               >
                 Resume Dashboard
               </Link>
-              <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-medium text-sm">AD</span>
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-600">{user.email}</span>
+                {isAdmin() && (
+                  <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                    Admin
+                  </span>
+                )}
+                <button
+                  onClick={handleSignOut}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-medium text-sm">
+                    {user.email?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -203,43 +269,61 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-700">{error}</p>
+            <button
+              onClick={() => setError('')}
+              className="mt-2 text-xs text-red-600 hover:text-red-800"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow-sm border mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
-              <button
-                onClick={() => setActiveTab("resumes")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "resumes"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <FileText className="w-4 h-4" />
-                  <span>Resume Reviews</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("leaderboard")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "leaderboard"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <Award className="w-4 h-4" />
-                  <span>Leaderboard</span>
-                </div>
-              </button>
-            </nav>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Resumes</p>
+                <p className="text-2xl font-bold text-gray-900">{resumeStats.total}</p>
+              </div>
+              <Users className="w-8 h-8 text-blue-500" />
+            </div>
           </div>
 
-          {activeTab === "resumes" && (
-            <div>
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Pending Review</p>
+                <p className="text-2xl font-bold text-gray-900">{resumeStats.pending}</p>
+              </div>
+              <Clock className="w-8 h-8 text-yellow-500" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Approved</p>
+                <p className="text-2xl font-bold text-gray-900">{resumeStats.approved}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Average Score</p>
+                <p className="text-2xl font-bold text-gray-900">{resumeStats.avgScore}%</p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-purple-500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border mb-8">
               {/* Search and Filter */}
               <div className="p-6 border-b border-gray-200">
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -250,14 +334,14 @@ export default function AdminDashboard() {
                       placeholder="Search candidates..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                   <div className="relative">
                     <select
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value)}
-                      className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                      className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="all">All Status</option>
                       <option value="pending">Pending</option>
@@ -270,33 +354,39 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Resume List */}
-              <div className="divide-y divide-gray-200">
-                {filteredResumes.map((resume) => (
+              {loading ? (
+                <div className="p-12 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">Loading resumes...</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {filteredResumes.map((resume) => (
                   <div key={resume.id} className="p-6 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 flex-1">
                         <div className="flex-shrink-0">
                           <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                             <span className="text-sm font-medium text-gray-600">
-                              {resume.candidateName.split(' ').map(n => n[0]).join('')}
+                              {resume.user?.email?.charAt(0).toUpperCase() || 'U'}
                             </span>
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3 mb-1">
                             <p className="text-sm font-medium text-gray-900">
-                              {resume.candidateName}
+                              {resume.user?.email || 'Unknown User'}
                             </p>
                             <span className={getStatusBadge(resume.status)}>
                               {resume.status.replace("_", " ").toUpperCase()}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600 mb-1">{resume.candidateEmail}</p>
+                          <p className="text-sm text-gray-600 mb-1">Resume ID: {resume.id.slice(0, 8)}...</p>
                           <div className="flex items-center space-x-4 text-xs text-gray-500">
-                            <span>{resume.fileName}</span>
-                            <span>{resume.fileSize}</span>
-                            <span>Uploaded {new Date(resume.uploadDate).toLocaleDateString()}</span>
+                            <span>Uploaded {new Date(resume.created_at).toLocaleDateString()}</span>
+                            {resume.updated_at !== resume.created_at && (
+                              <span>Updated {new Date(resume.updated_at).toLocaleDateString()}</span>
+                            )}
                             {resume.score && (
                               <div className="flex items-center space-x-1">
                                 <Star className="w-3 h-3 text-yellow-400 fill-current" />
@@ -306,11 +396,6 @@ export default function AdminDashboard() {
                           </div>
                           {resume.notes && (
                             <p className="text-xs text-gray-600 mt-2 italic line-clamp-2">"{resume.notes}"</p>
-                          )}
-                          {resume.reviewedBy && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Reviewed by {resume.reviewedBy} on {new Date(resume.reviewDate!).toLocaleDateString()}
-                            </p>
                           )}
                         </div>
                       </div>
@@ -327,104 +412,52 @@ export default function AdminDashboard() {
                           >
                             Review
                           </button>
-                          <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                          <button 
+                            onClick={() => handleViewResume(resume)}
+                            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                            title="View resume"
+                          >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                          <button 
+                            onClick={() => handleDownloadResume(resume)}
+                            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                            title="Download resume"
+                          >
                             <Download className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === "leaderboard" && (
-            <div className="p-6">
-              <div className="flex items-center space-x-2 mb-6">
-                <BarChart3 className="w-5 h-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Resume Score Leaderboard</h3>
-              </div>
+                  ))}
+                </div>
+              )}
               
-              <div className="space-y-4">
-                {leaderboardData.map((candidate) => (
-                  <div key={candidate.rank} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        candidate.rank === 1 ? 'bg-yellow-100 text-yellow-800' :
-                        candidate.rank === 2 ? 'bg-gray-100 text-gray-800' :
-                        candidate.rank === 3 ? 'bg-orange-100 text-orange-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        #{candidate.rank}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{candidate.name}</p>
-                        <span className={getStatusBadge(candidate.status as Resume["status"])}>
-                          {candidate.status.replace("_", " ").toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      <span className="font-bold text-lg">{candidate.score}</span>
-                      <span className="text-gray-500">/100</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {!loading && filteredResumes.length === 0 && (
+                <div className="p-12 text-center">
+                  <FileText className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                  <p className="text-gray-500">No resumes found</p>
+                  <p className="text-sm text-gray-400">
+                    {searchTerm || statusFilter !== "all" 
+                      ? "Try adjusting your search or filter" 
+                      : "Upload your first resume to get started"}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </main>
+        </main>
 
       {/* Review Modal */}
-      {showReviewModal && selectedResume && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Review Resume</h3>
-              <button
-                onClick={() => setShowReviewModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="mb-4">
-              <p className="text-sm text-gray-600">Candidate: {selectedResume.candidateName}</p>
-              <p className="text-sm text-gray-600">File: {selectedResume.fileName}</p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleStatusUpdate(selectedResume.id, "approved", 85, "Approved - meets requirements")}
-                  className="px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => handleStatusUpdate(selectedResume.id, "needs_revision", 65, "Needs revision - minor improvements needed")}
-                  className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors"
-                >
-                  Needs Revision
-                </button>
-              </div>
-              <button
-                onClick={() => handleStatusUpdate(selectedResume.id, "rejected", 35, "Rejected - does not meet requirements")}
-                className="w-full px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ReviewModal
+        resume={selectedResume!}
+        isOpen={showReviewModal}
+        onClose={() => {
+          setShowReviewModal(false);
+          setSelectedResume(null);
+        }}
+        onSubmit={(resumeId, status, score, notes) => handleStatusUpdate(resumeId, status, score, notes)}
+      />
     </div>
   );
 }
