@@ -217,12 +217,12 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Link
+              {/* <Link
                 href="/"
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Resume Dashboard
-              </Link>
+              </Link> */}
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-gray-600">{user.profile?.email || user.email}</span>
                 {isSuperAdmin() && (

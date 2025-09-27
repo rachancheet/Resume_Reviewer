@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ResumeService } from "@/lib/resume-service";
 import FileUpload from "@/components/FileUpload";
 import type { Resume } from "@/lib/supabase";
+import { redirect } from 'next/navigation';
 
 
 export default function ResumeDashboard() {
@@ -31,6 +32,10 @@ export default function ResumeDashboard() {
   useEffect(() => {
     if (user) {
       loadResumes();
+    }
+    if(isAdmin()){
+
+redirect("/admin")
     }
   }, [user]);
 
@@ -100,7 +105,7 @@ export default function ResumeDashboard() {
         return;
       }
 
-      const { resume, error: createError } = await ResumeService.createResume(user.id, fileUrl!, selectedFile.name);
+      const { resume, error: createError } = await ResumeService.createResume(user.id, user.email ,fileUrl!, selectedFile.name);
       
       setUploadProgress(100);
 
