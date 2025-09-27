@@ -1,33 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Upload, FileText, CheckCircle, Clock, XCircle, Eye, Download, Star, Trash2, Award, Trophy, Medal, LogOut } from "lucide-react";
+import { FileText, CheckCircle, Clock, XCircle, Eye, Download, Star, Award, Trophy, Medal, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { ResumeService } from "@/lib/resume-service";
-import { apiClient } from "@/lib/api-client";
 import FileUpload from "@/components/FileUpload";
-import type { Resume } from "@/lib/api-client";
+import type { Resume } from "@/lib/supabase";
 
-// Leaderboard data (would be fetched from API in real implementation)
-const leaderboardData = [
-  { rank: 1, name: "Mike Chen", score: 92, status: "approved" },
-  { rank: 2, name: "Jane Smith", score: 85, status: "approved" },
-  { rank: 3, name: "John Doe", score: 85, status: "approved" },
-  { rank: 4, name: "Alex Johnson", score: 72, status: "needs_revision" },
-  { rank: 5, name: "Sarah Wilson", score: 68, status: "needs_revision" },
-  { rank: 6, name: "David Brown", score: 58, status: "rejected" },
-  { rank: 7, name: "Emma Davis", score: 45, status: "rejected" }
-];
 
 export default function ResumeDashboard() {
   const { user, loading: authLoading, signOut, isAdmin } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [resumes, setResumes] = useState<Resume[]>([]);
+  const [leaderboardData, setLeaderboardData] = useState<Array<{
+    rank: number
+    name: string
+    email: string
+    score: number
+    status: Resume['status']
+  }>>([]);
   const [activeTab, setActiveTab] = useState<"dashboard" | "leaderboard">("dashboard");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [error, setError] = useState<string>('');
   const [message, setMessage] = useState<string>('');
 
@@ -36,6 +33,25 @@ export default function ResumeDashboard() {
       loadResumes();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (activeTab === 'leaderboard' && leaderboardData.length === 0) {
+      loadLeaderboard();
+    }
+  }, [activeTab]);
+
+  const loadLeaderboard = async () => {
+    setLoadingLeaderboard(true);
+    const { leaderboard, error } = await ResumeService.getLeaderboard();
+    
+    if (error) {
+      setError(error);
+    } else {
+      setLeaderboardData(leaderboard || []);
+    }
+    
+    setLoadingLeaderboard(false);
+  };
 
   const loadResumes = async () => {
     if (!user) return;
@@ -71,29 +87,21 @@ export default function ResumeDashboard() {
     setMessage('');
 
     try {
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 200);
-
-      const { url: fileUrl, error: uploadError } = await ResumeService.uploadResumeFile(selectedFile, user.id);
+      const { url: fileUrl, error: uploadError } = await ResumeService.uploadResumeFile(
+        selectedFile, 
+        user.id,
+        (progress) => setUploadProgress(progress)
+      );
       
       if (uploadError) {
-        clearInterval(progressInterval);
         setError(uploadError);
         setUploading(false);
         setUploadProgress(0);
         return;
       }
 
-      const createError = null;
+      const { resume, error: createError } = await ResumeService.createResume(user.id, fileUrl!, selectedFile.name);
       
-      clearInterval(progressInterval);
       setUploadProgress(100);
 
       if (createError) {
@@ -102,6 +110,7 @@ export default function ResumeDashboard() {
         setMessage('Resume uploaded successfully!');
         setSelectedFile(null);
         await loadResumes(); 
+      }
     } catch (error) {
       setError('Upload failed. Please try again.');
     } finally {
@@ -114,16 +123,11 @@ export default function ResumeDashboard() {
   };
 
   const handleDownload = async (resume: Resume) => {
-    const { error } = await ResumeService.downloadResumeFile(resume.id, `resume_${new Date(resume.created_at).toLocaleDateString().replace(/\//g, '_')}.pdf`);
+    const { url, error } = await ResumeService.getResumeDownloadUrl(resume.file_url);
     if (error) {
       setError(error);
-    }
-  };
-
-  const handleViewResume = async (resume: Resume) => {
-    const { error } = await ResumeService.viewResumeFile(resume.id);
-    if (error) {
-      setError(error);
+    } else if (url) {
+      window.open(url, '_blank');
     }
   };
 
@@ -208,7 +212,7 @@ export default function ResumeDashboard() {
                 </Link>
               )}
               <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-600">{user.email}</span>
+                <span className="text-sm text-gray-600">{user.profile?.email || user.email}</span>
                 {isAdmin() && (
                   <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
                     Admin
@@ -223,7 +227,7 @@ export default function ResumeDashboard() {
                 </button>
                 <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                   <span className="text-white font-medium text-sm">
-                    {user.email?.charAt(0).toUpperCase()}
+                    {(user.profile?.email || user.email)?.charAt(0).toUpperCase()}
                   </span>
                 </div>
               </div>
@@ -341,7 +345,7 @@ export default function ResumeDashboard() {
                                   )}
                                 </div>
                                 {resume.notes && (
-                                  <p className="text-xs text-gray-600 mt-1 italic">"{resume.notes}"</p>
+                                  <p className="text-xs text-gray-600 mt-1 italic">&quot;{resume.notes}&quot;</p>
                                 )}
                               </div>
                             </div>
@@ -350,7 +354,7 @@ export default function ResumeDashboard() {
                               {getStatusIcon(resume.status)}
                               <div className="flex items-center space-x-2">
                                 <button 
-                                  onClick={() => handleViewResume(resume)}
+                                  onClick={() => window.open(resume.file_url, '_blank')}
                                   className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                                   title="View resume"
                                 >
@@ -394,8 +398,20 @@ export default function ResumeDashboard() {
                 </div>
               </div>
               
-              <div className="space-y-4">
-                {leaderboardData.map((candidate) => (
+              {loadingLeaderboard ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">Loading leaderboard...</p>
+                </div>
+              ) : leaderboardData.length === 0 ? (
+                <div className="text-center py-8">
+                  <Trophy className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                  <p className="text-gray-500">No scored resumes yet</p>
+                  <p className="text-sm text-gray-400">Submit and get your resume reviewed to appear on the leaderboard</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {leaderboardData.map((candidate) => (
                   <div key={candidate.rank} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <div className="flex items-center space-x-4">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
@@ -439,18 +455,35 @@ export default function ResumeDashboard() {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Star className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800">Your Current Ranking</span>
+                  ))}
                 </div>
-                <p className="text-xs text-blue-700">
-                  You're currently ranked #3 with a score of 85/100. Great job! Keep improving to reach the top spot.
-                </p>
-              </div>
+              )}
+
+              {user && leaderboardData.length > 0 && (
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Star className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Your Current Ranking</span>
+                  </div>
+                  {(() => {
+                    const userRanking = leaderboardData.find(item => item.email === (user.profile?.email || user.email));
+                    if (userRanking) {
+                      return (
+                        <p className="text-xs text-blue-700">
+                          You&apos;re currently ranked #{userRanking.rank} with a score of {userRanking.score}/100. 
+                          {userRanking.rank === 1 ? ' Congratulations on the top spot!' : ' Keep improving to climb higher!'}
+                        </p>
+                      );
+                    } else {
+                      return (
+                        <p className="text-xs text-blue-700">
+                          Submit a resume and get it reviewed to appear on the leaderboard!
+                        </p>
+                      );
+                    }
+                  })()}
+                </div>
+              )}
             </div>
           )}
         </div>

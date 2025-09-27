@@ -18,17 +18,17 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { ResumeService } from "@/lib/resume-service";
-import type { Resume } from "@/lib/api-client";
+import type { Resume, User } from "@/lib/supabase";
 import ReviewModal from "@/components/ReviewModal";
+import AdminInviteForm from "@/components/AdminInviteForm";
 
-// Extended Resume interface for admin view
 interface AdminResumeView extends Resume {
-  user?: { email: string };
+  user?: User;
 }
 
 
 export default function AdminDashboard() {
-  const { user, loading: authLoading, signOut, isAdmin } = useAuth();
+  const { user, loading: authLoading, signOut, isAdmin, isSuperAdmin } = useAuth();
   const [resumes, setResumes] = useState<AdminResumeView[]>([]);
   const [selectedResume, setSelectedResume] = useState<AdminResumeView | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -91,12 +91,10 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Update local state
       setResumes(prev => prev.map(r => 
         r.id === resumeId ? { ...r, ...resume } : r
       ));
       
-      // Refresh stats
       await loadStats();
       
       setShowReviewModal(false);
@@ -113,29 +111,12 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleViewResume = async (resume: AdminResumeView) => {
-    const { error } = await ResumeService.viewResumeFile(resume.id);
-    if (error) {
-      setError(error);
-    }
-  };
-
-  const handleDownloadResume = async (resume: AdminResumeView) => {
-    const candidateEmail = resume.user?.email || resume.email || 'unknown';
-    const filename = `resume_${candidateEmail}_${new Date(resume.created_at).toLocaleDateString().replace(/\//g, '_')}.pdf`;
-    const { error } = await ResumeService.downloadResumeFile(resume.id, filename);
-    if (error) {
-      setError(error);
-    }
-  };
-
   const filteredResumes = resumes.filter(resume => {
     const matchesStatus = statusFilter === "all" || resume.status === statusFilter;
     const matchesSearch = (resume.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
-  // Show loading screen if authenticating
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
@@ -168,7 +149,7 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <XCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600 mb-6">You don't have admin privileges to access this dashboard</p>
+          <p className="text-gray-600 mb-6">You don&apos;t have admin privileges to access this dashboard</p>
           <div className="space-y-3">
             <Link
               href="/"
@@ -226,7 +207,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -244,8 +224,13 @@ export default function AdminDashboard() {
                 Resume Dashboard
               </Link>
               <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-600">{user.email}</span>
-                {isAdmin() && (
+                <span className="text-sm text-gray-600">{user.profile?.email || user.email}</span>
+                {isSuperAdmin() && (
+                  <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                    Super Admin
+                  </span>
+                )}
+                {isAdmin() && !isSuperAdmin() && (
                   <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
                     Admin
                   </span>
@@ -259,7 +244,7 @@ export default function AdminDashboard() {
                 </button>
                 <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                   <span className="text-white font-medium text-sm">
-                    {user.email?.charAt(0).toUpperCase()}
+                    {(user.profile?.email || user.email)?.charAt(0).toUpperCase()}
                   </span>
                 </div>
               </div>
@@ -278,6 +263,12 @@ export default function AdminDashboard() {
             >
               Dismiss
             </button>
+          </div>
+        )}
+
+        {isSuperAdmin() && (
+          <div className="mb-8">
+            <AdminInviteForm onInviteSuccess={() => console.log('Admin invited successfully')} />
           </div>
         )}
 
@@ -324,7 +315,6 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border mb-8">
-              {/* Search and Filter */}
               <div className="p-6 border-b border-gray-200">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1 relative">
@@ -395,7 +385,7 @@ export default function AdminDashboard() {
                             )}
                           </div>
                           {resume.notes && (
-                            <p className="text-xs text-gray-600 mt-2 italic line-clamp-2">"{resume.notes}"</p>
+                            <p className="text-xs text-gray-600 mt-2 italic line-clamp-2">&quot;{resume.notes}&quot;</p>
                           )}
                         </div>
                       </div>
@@ -413,14 +403,14 @@ export default function AdminDashboard() {
                             Review
                           </button>
                           <button 
-                            onClick={() => handleViewResume(resume)}
+                            onClick={() => window.open(resume.file_url, '_blank')}
                             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                             title="View resume"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => handleDownloadResume(resume)}
+                            onClick={() => window.open(resume.file_url, '_blank')}
                             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                             title="Download resume"
                           >
@@ -448,7 +438,6 @@ export default function AdminDashboard() {
             </div>
         </main>
 
-      {/* Review Modal */}
       <ReviewModal
         resume={selectedResume!}
         isOpen={showReviewModal}

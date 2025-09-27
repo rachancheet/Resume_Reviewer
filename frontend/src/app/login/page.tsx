@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState } from 'react'
+// import { useRouter } from 'next/navigation' // Not used yet
 import { useAuth } from '@/hooks/useAuth'
-import { Mail, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react'
+import { Mail, ArrowRight, CheckCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,21 +11,18 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
   const { signInWithMagicLink } = useAuth()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-
-  useEffect(() => {
-    const urlMessage = searchParams?.get('message')
-    if (urlMessage) {
-      setMessage(urlMessage)
-    }
-  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!email) {
       setMessage('Please enter your email address')
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setMessage('Please enter a valid email address')
       return
     }
 
@@ -36,17 +33,20 @@ export default function LoginPage() {
       const { error } = await signInWithMagicLink(email)
       
       if (error) {
-        setMessage(error.message)
+        if (error.message.includes('rate limit')) {
+          setMessage('Too many requests. Please wait a moment before trying again.')
+        } else if (error.message.includes('email')) {
+          setMessage('There was an issue sending the email. Please check your email address and try again.')
+        } else {
+          setMessage(error.message)
+        }
       } else {
         setIsEmailSent(true)
-        const redirectTo = searchParams?.get('redirect')
-        if (redirectTo) {
-          localStorage.setItem('login_redirect', redirectTo)
-        }
         setMessage('Check your email for the magic link!')
       }
     } catch (error) {
-      setMessage('An unexpected error occurred')
+      console.error('Login error:', error)
+      setMessage('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -60,12 +60,12 @@ export default function LoginPage() {
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h1>
             <p className="text-gray-600 mb-6">
-              We've sent a magic link to <strong>{email}</strong>. 
+              We&apos;ve sent a magic link to <strong>{email}</strong>. 
               Click the link in your email to sign in.
             </p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-800">
-                <strong>Tip:</strong> Check your spam folder if you don't see the email within a few minutes.
+                <strong>Tip:</strong> Check your spam folder if you don&apos;t see the email within a few minutes.
               </p>
             </div>
             <button
@@ -95,25 +95,6 @@ export default function LoginPage() {
           <p className="text-gray-600">Sign in to access your resume dashboard</p>
         </div>
 
-        {message && (
-          <div className={`mb-6 p-3 rounded-lg text-sm flex items-start space-x-2 ${
-            message.includes('expired') || message.includes('Session') 
-              ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-              : message.includes('Check your email') 
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {message.includes('expired') || message.includes('Session') ? (
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            ) : message.includes('Check your email') ? (
-              <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            )}
-            <span>{message}</span>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -129,6 +110,16 @@ export default function LoginPage() {
               required
             />
           </div>
+
+          {message && (
+            <div className={`p-3 rounded-lg text-sm ${
+              message.includes('Check your email') 
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {message}
+            </div>
+          )}
 
           <button
             type="submit"
@@ -149,7 +140,7 @@ export default function LoginPage() {
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800">
-              <strong>Magic Link Authentication:</strong> We'll send you a secure link to sign in without a password.
+              <strong>Magic Link Authentication:</strong> We&apos;ll send you a secure link to sign in without a password.
             </p>
           </div>
         </div>
@@ -157,3 +148,4 @@ export default function LoginPage() {
     </div>
   )
 }
+
