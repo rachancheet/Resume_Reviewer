@@ -63,10 +63,13 @@ export function useAuth() {
     const getSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
+        console.log("Supabase session created")
         if (session?.user) {
           const profile = await fetchUserProfile(session.user.id)
+          console.log("User profile set")
           setUser({ ...session.user, profile })
         } else {
+          console.log("Supabase session JWT not found")
           setUser(null)
         }
       } catch (error) {
@@ -114,7 +117,7 @@ export function useAuth() {
       return url
     }
     
-console.log("email redirect to ",getURL())
+    // console.log("email redirect to ",getURL())
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {

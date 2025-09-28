@@ -61,7 +61,7 @@ export default function ResumeDashboard() {
   }, []);
 
   useEffect(() => {
-    console.log("user changed",user)
+    console.log("user profile changed",user)
     if (user && !authLoading) {
       loadResumes();
       if (isAdmin()) {
