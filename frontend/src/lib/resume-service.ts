@@ -247,31 +247,16 @@ export class ResumeService {
     error?: string
   }> {
     try {
-      const { data, error } = await supabase
-        .from('resumes')
-        .select(`
-          score,
-          status,
-          user:users(email)
-        `)
-        .not('score', 'is', null)
-        .order('score', { ascending: false })
-
-      if (error) {
-        return { error: error.message }
+      const response = await fetch('/api/leaderboard')
+      const data = await response.json()
+      
+      if (!response.ok) {
+        return { error: data.error || 'Failed to fetch leaderboard' }
       }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const leaderboard = data?.map((resume: any, index: number) => ({
-        rank: index + 1,
-        name: resume.user?.email?.split('@')[0] || 'Anonymous',
-        email: resume.user?.email || '',
-        score: resume.score || 0,
-        status: resume.status
-      })) || []
-
-      return { leaderboard }
+      
+      return { leaderboard: data.leaderboard }
     } catch (error) {
+      console.error('Leaderboard fetch error:', error)
       return { error: 'Failed to fetch leaderboard data' }
     }
   }
