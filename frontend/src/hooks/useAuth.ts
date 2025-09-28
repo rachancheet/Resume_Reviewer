@@ -105,6 +105,7 @@ export function useAuth() {
   }, [fetchUserProfile])
 
   const signInWithMagicLink = useCallback(async (email: string): Promise<{ error?: AuthError | null }> => {
+    console.log(process.env)
 
 const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
