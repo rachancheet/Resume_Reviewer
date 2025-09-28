@@ -52,3 +52,22 @@ body {
 .drag-reject {
   @apply border-red-500 bg-red-50;
 }
+
+/* Upload progress animation */
+@keyframes moveAcross {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(400%);
+    opacity: 0.7;
+  }
+}
+
+.moving-bar {
+  animation: moveAcross 1.5s ease-in-out infinite;
+}

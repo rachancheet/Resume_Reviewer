@@ -146,15 +146,30 @@ export default function FileUpload({
               {uploading && (
                 <div className="mt-3">
                   <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                    <span>Uploading...</span>
+                    <span>
+                      {uploadProgress === 0 ? 'Preparing upload...' : 
+                       uploadProgress < 10 ? 'Connecting...' :
+                       uploadProgress < 95 ? 'Uploading...' : 
+                       'Finalizing...'}
+                    </span>
                     <span>{uploadProgress}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden relative">
+                    {uploadProgress >= 100 ? (
+                      // Completed state - full bar
+                      <div className="bg-green-500 h-2 rounded-full w-full transition-all duration-500" />
+                    ) : (
+                      // Moving bar animation
+                      <div className="absolute inset-0">
+                        <div className="bg-blue-600 h-2 rounded-full w-1/4 moving-bar" />
+                      </div>
+                    )}
                   </div>
+                  {uploadProgress === 0 && (
+                    <p className="text-xs text-yellow-600 mt-1">
+                      If this takes too long, please check your internet connection and try again.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
