@@ -110,7 +110,7 @@ export default function ResumeDashboard() {
         return;
       }
 
-      const { resume, error: createError } = await ResumeService.createResume(user.id, user.email ,fileUrl!, selectedFile.name);
+ const { resume, error: createError } = await ResumeService.createResume(user.id, user.profile?.email || user.email || '', fileUrl!, selectedFile.name);
       
       setUploadProgress(100);
 
