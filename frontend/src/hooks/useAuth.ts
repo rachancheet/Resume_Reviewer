@@ -105,6 +105,14 @@ export function useAuth() {
   }, [fetchUserProfile])
 
   const signInWithMagicLink = useCallback(async (email: string): Promise<{ error?: AuthError | null }> => {
+  const baseUrl = process.env.VERCEL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000";
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${baseUrl}/auth/confirm`
+    }
+  });
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
