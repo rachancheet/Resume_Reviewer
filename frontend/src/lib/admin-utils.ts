@@ -34,7 +34,7 @@ export class AdminUtils {
           role: 'admin',
           created_by: createdBy
         },
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?type=admin_invite`
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://rachancheet-resume-reviewer.vercel.app'}/auth/confirm?type=admin_invite`
       })
 
       if (error) {

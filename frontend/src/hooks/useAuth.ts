@@ -106,10 +106,12 @@ export function useAuth() {
 
   const signInWithMagicLink = useCallback(async (email: string): Promise<{ error?: AuthError | null }> => {
 
+
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?type=admin_invite`
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://rachancheet-resume-reviewer.vercel.app'}/auth/confirm`
       }
     })
     return { error }
