@@ -57,7 +57,7 @@ export default function FileUpload({
     accept: {
       'application/pdf': ['.pdf']
     },
-    maxSize: 10 * 1024 * 1024, // 10MB
+    maxSize: 10 * 1024 * 1024, 
     multiple: false,
     disabled: uploading
   })

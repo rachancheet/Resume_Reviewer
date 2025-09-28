@@ -41,12 +41,13 @@ export class ResumeService {
   }
 
   // Create resume record in database
-  static async createResume(userId: string, fileUrl: string, originalFileName: string): Promise<{ resume?: Resume; error?: string }> {
+  static async createResume(userId: string, username:string,fileUrl: string, originalFileName: string): Promise<{ resume?: Resume; error?: string }> {
     try {
       const { data, error } = await supabase
         .from('resumes')
         .insert({
           user_id: userId,
+          user_name:username,
           file_url: fileUrl,
           status: 'pending'
         })
@@ -83,14 +84,11 @@ export class ResumeService {
   }
 
   // Get all resumes (admin)
-  static async getAllResumes(): Promise<{ resumes?: (Resume & { user: User })[]; error?: string }> {
+  static async getAllResumes(): Promise<{ resumes?: Resume[]; error?: string }> {
     try {
       const { data, error } = await supabase
         .from('resumes')
-        .select(`
-          *,
-          user:users(*)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -176,19 +174,20 @@ export class ResumeService {
   // Get resume download URL
   static async getResumeDownloadUrl(fileUrl: string): Promise<{ url?: string; error?: string }> {
     try {
-      // Extract file path from URL
-      const url = new URL(fileUrl)
-      const filePath = url.pathname.split('/storage/v1/object/public/resumes/')[1]
-
-      const { data, error } = await supabase.storage
-        .from('resumes')
-        .createSignedUrl(filePath, 3600) // 1 hour expiry
-
-      if (error) {
-        return { error: error.message }
+      // Try to create a blob URL for proper download behavior
+      try {
+        const response = await fetch(fileUrl)
+        if (response.ok) {
+          const blob = await response.blob()
+          const downloadUrl = URL.createObjectURL(blob)
+          return { url: downloadUrl }
+        }
+      } catch (fetchError) {
+        console.warn('Failed to fetch file for blob creation:', fetchError)
       }
-
-      return { url: data.signedUrl }
+      
+      // Fallback: return the original URL
+      return { url: fileUrl }
     } catch (error) {
       return { error: 'Failed to generate download URL' }
     }

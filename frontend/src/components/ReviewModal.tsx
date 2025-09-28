@@ -5,7 +5,7 @@ import { X, Star } from 'lucide-react'
 import type { Resume, User } from '@/lib/supabase'
 
 interface ReviewModalProps {
-  resume: Resume & { user?: User }
+  resume: Resume
   isOpen: boolean
   onClose: () => void
   onSubmit: (resumeId: string, status: Resume['status'], score?: number, notes?: string) => void
@@ -57,12 +57,11 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
           </button>
         </div>
         
-        {/* Resume Info */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <div className="space-y-2">
             <p className="text-sm">
               <span className="font-medium text-gray-700">Candidate:</span>{' '}
-              <span className="text-gray-900">{resume.user?.email}</span>
+              <span className="text-gray-900">{resume.user_name}</span>
             </p>
             <p className="text-sm">
               <span className="font-medium text-gray-700">Uploaded:</span>{' '}
@@ -103,7 +102,6 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
           </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="mb-6">
           <h4 className="text-sm font-medium text-gray-900 mb-3">Quick Actions</h4>
           <div className="grid grid-cols-1 gap-2">
@@ -136,11 +134,8 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
           </div>
         </div>
 
-        {/* Custom Review */}
         <div className="border-t border-gray-200 pt-6">
           <h4 className="text-sm font-medium text-gray-900 mb-4">Custom Review</h4>
-          
-          {/* Status Selection */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
             <select
@@ -155,7 +150,6 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
             </select>
           </div>
 
-          {/* Score Input */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Score: {score}/100
@@ -180,7 +174,6 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
             </div>
           </div>
 
-          {/* Notes Input */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
             <textarea
@@ -192,7 +185,6 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
             />
           </div>
 
-          {/* Submit Button */}
           <button
             onClick={handleSubmit}
             disabled={!selectedStatus || isSubmitting}

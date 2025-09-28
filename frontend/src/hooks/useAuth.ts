@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { User as SupabaseUser, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { User } from '@/lib/supabase'
@@ -12,8 +12,9 @@ interface AuthUser extends SupabaseUser {
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const initialized = useRef(false)
 
-  const fetchUserProfile = async (userId: string): Promise<User | null> => {
+  const fetchUserProfile = useCallback(async (userId: string): Promise<User | null> => {
     try {
       const { data, error } = await supabase
         .from('users')
@@ -23,7 +24,6 @@ export function useAuth() {
 
       if (error) {
         console.error('Error fetching user profile:', error)
-        // If user profile doesn't exist, create it
         if (error.code === 'PGRST116') {
           const { data: { user } } = await supabase.auth.getUser()
           if (user) {
@@ -52,44 +52,59 @@ export function useAuth() {
       console.error('Error fetching user profile:', error)
       return null
     }
-  }
+  }, [])
 
   useEffect(() => {
-    // Get initial session
+    // Prevent multiple initializations
+    if (initialized.current) return
+
+    initialized.current = true
+
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        const profile = await fetchUserProfile(session.user.id)
-        setUser({ ...session.user, profile })
-        console.log('user', { ...session.user, profile })
-        console.log('user', user)  
-      } else {
-        setUser(null)
-      }
-      setLoading(false)
-    }
-
-    getSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id)
-        
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
           const profile = await fetchUserProfile(session.user.id)
           setUser({ ...session.user, profile })
         } else {
           setUser(null)
         }
+      } catch (error) {
+        console.error('Error getting session:', error)
+        setUser(null)
+      } finally {
         setLoading(false)
+      }
+    }
+
+    getSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.id)
+        
+        try {
+          if (session?.user) {
+            const profile = await fetchUserProfile(session.user.id)
+            setUser({ ...session.user, profile })
+          } else {
+            setUser(null)
+          }
+        } catch (error) {
+          console.error('Error handling auth state change:', error)
+          setUser(null)
+        } finally {
+          setLoading(false)
+        }
       }
     )
 
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [fetchUserProfile])
 
-  const signInWithMagicLink = async (email: string): Promise<{ error?: AuthError | null }> => {
+  const signInWithMagicLink = useCallback(async (email: string): Promise<{ error?: AuthError | null }> => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -97,21 +112,20 @@ export function useAuth() {
       }
     })
     return { error }
-  }
+  }, [])
 
-  const signOut = async (): Promise<{ error?: AuthError | null }> => {
+  const signOut = useCallback(async (): Promise<{ error?: AuthError | null }> => {
     const { error } = await supabase.auth.signOut()
     return { error }
-  }
+  }, [])
 
-  const isAdmin = (): boolean => {
+  const isAdmin = useCallback((): boolean => {
     return user?.profile?.role === 'admin' || user?.profile?.role === 'super_admin'
-  }
+  }, [user?.profile?.role])
 
-  const isSuperAdmin = (): boolean => {
-    console.log('isSuperAdmin', user)
+  const isSuperAdmin = useCallback((): boolean => {
     return user?.profile?.role === 'super_admin'
-  }
+  }, [user?.profile?.role])
 
   return {
     user,

@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FileText, CheckCircle, Clock, XCircle, Eye, Download, Star, Award, Trophy, Medal, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { ResumeService } from "@/lib/resume-service";
 import FileUpload from "@/components/FileUpload";
 import type { Resume } from "@/lib/supabase";
+import { redirect } from 'next/navigation';
 
-// Leaderboard will be fetched from API
 
 export default function ResumeDashboard() {
+
+
   const { user, loading: authLoading, signOut, isAdmin } = useAuth();
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [leaderboardData, setLeaderboardData] = useState<Array<{
@@ -29,34 +32,7 @@ export default function ResumeDashboard() {
   const [error, setError] = useState<string>('');
   const [message, setMessage] = useState<string>('');
 
-  // Load user's resumes on component mount
-  useEffect(() => {
-    if (user) {
-      loadResumes();
-    }
-  }, [user]);
-
-  // Load leaderboard when leaderboard tab is active
-  useEffect(() => {
-    if (activeTab === 'leaderboard' && leaderboardData.length === 0) {
-      loadLeaderboard();
-    }
-  }, [activeTab]);
-
-  const loadLeaderboard = async () => {
-    setLoadingLeaderboard(true);
-    const { leaderboard, error } = await ResumeService.getLeaderboard();
-    
-    if (error) {
-      setError(error);
-    } else {
-      setLeaderboardData(leaderboard || []);
-    }
-    
-    setLoadingLeaderboard(false);
-  };
-
-  const loadResumes = async () => {
+  const loadResumes = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -69,7 +45,38 @@ export default function ResumeDashboard() {
     }
     
     setLoading(false);
-  };
+  }, [user]);
+
+  const loadLeaderboard = useCallback(async () => {
+    setLoadingLeaderboard(true);
+    const { leaderboard, error } = await ResumeService.getLeaderboard();
+    
+    if (error) {
+      setError(error);
+    } else {
+      setLeaderboardData(leaderboard || []);
+    }
+    
+    setLoadingLeaderboard(false);
+  }, []);
+
+  useEffect(() => {
+    console.log("user changed",user)
+    if (user && !authLoading) {
+      loadResumes();
+      if (isAdmin()) {
+        redirect("/admin");
+      }
+    }
+  }, [user, authLoading, loadResumes, isAdmin]);
+
+  useEffect(() => {
+    if (activeTab === 'leaderboard' && leaderboardData.length === 0) {
+      loadLeaderboard();
+    }
+  }, [activeTab, leaderboardData.length, loadLeaderboard]);
+
+
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
@@ -90,7 +97,6 @@ export default function ResumeDashboard() {
     setMessage('');
 
     try {
-      // Upload file to storage with progress tracking
       const { url: fileUrl, error: uploadError } = await ResumeService.uploadResumeFile(
         selectedFile, 
         user.id,
@@ -104,8 +110,7 @@ export default function ResumeDashboard() {
         return;
       }
 
-      // Create resume record
-      const { resume, error: createError } = await ResumeService.createResume(user.id, fileUrl!, selectedFile.name);
+      const { resume, error: createError } = await ResumeService.createResume(user.id, user.email ,fileUrl!, selectedFile.name);
       
       setUploadProgress(100);
 
@@ -114,7 +119,7 @@ export default function ResumeDashboard() {
       } else {
         setMessage('Resume uploaded successfully!');
         setSelectedFile(null);
-        await loadResumes(); // Refresh the list
+        await loadResumes(); 
       }
     } catch (error) {
       setError('Upload failed. Please try again.');
@@ -128,11 +133,38 @@ export default function ResumeDashboard() {
   };
 
   const handleDownload = async (resume: Resume) => {
-    const { url, error } = await ResumeService.getResumeDownloadUrl(resume.file_url);
-    if (error) {
-      setError(error);
-    } else if (url) {
-      window.open(url, '_blank');
+    try {
+      setError(''); // Clear any previous errors
+      
+      // Create a more robust download function
+      const response = await fetch(resume.file_url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch file');
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      
+      // Create a temporary link element to trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `resume_${new Date(resume.created_at).toLocaleDateString().replace(/\//g, '_')}.pdf`;
+      link.style.display = 'none'; // Hide the link
+      
+      // Add to DOM, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Download failed:', error);
+      setError('Failed to download resume. Please try again.');
+      
+      // Fallback: open in new tab if download fails
+      window.open(resume.file_url, '_blank');
     }
   };
 
@@ -143,7 +175,6 @@ export default function ResumeDashboard() {
     }
   };
 
-  // Show login screen if not authenticated
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
@@ -199,7 +230,6 @@ export default function ResumeDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -249,7 +279,6 @@ export default function ResumeDashboard() {
           <p className="text-gray-600">Upload your resume and track its review status</p>
         </div>
 
-        {/* Tab Navigation */}
         <div className="bg-white rounded-xl shadow-sm border mb-8">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
@@ -284,7 +313,6 @@ export default function ResumeDashboard() {
 
           {activeTab === "dashboard" && (
             <div>
-              {/* Upload Section */}
               <div className="p-6 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload New Resume</h3>
                 
@@ -315,7 +343,6 @@ export default function ResumeDashboard() {
                 )}
               </div>
 
-              {/* Resume List */}
               <div>
                 <div className="p-6 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">Your Resumes</h3>

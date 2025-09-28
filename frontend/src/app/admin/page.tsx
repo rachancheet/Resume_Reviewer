@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   FileText, 
   CheckCircle, 
@@ -22,16 +22,13 @@ import type { Resume, User } from "@/lib/supabase";
 import ReviewModal from "@/components/ReviewModal";
 import AdminInviteForm from "@/components/AdminInviteForm";
 
-// Extended Resume interface for admin view
-interface AdminResumeView extends Resume {
-  user?: User;
-}
+// Remove the interface since we're not using user join anymore
 
 
 export default function AdminDashboard() {
   const { user, loading: authLoading, signOut, isAdmin, isSuperAdmin } = useAuth();
-  const [resumes, setResumes] = useState<AdminResumeView[]>([]);
-  const [selectedResume, setSelectedResume] = useState<AdminResumeView | null>(null);
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -46,17 +43,10 @@ export default function AdminDashboard() {
     avgScore: 0
   });
 
-  // Load all resumes and stats
-  useEffect(() => {
-    if (user) {
-      loadAllResumes();
-      loadStats();
-    }
-  }, [user]);
-
-  const loadAllResumes = async () => {
+  const loadAllResumes = useCallback(async () => {
     setLoading(true);
     const { resumes: allResumes, error } = await ResumeService.getAllResumes();
+    console.log("allresumes", allResumes);
     
     if (error) {
       setError(error);
@@ -65,9 +55,9 @@ export default function AdminDashboard() {
     }
     
     setLoading(false);
-  };
+  }, []);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     const { stats: resumeStats, error } = await ResumeService.getResumeStats();
     
     if (error) {
@@ -82,9 +72,16 @@ export default function AdminDashboard() {
         avgScore: resumeStats.avg_score
       });
     }
-  };
+  }, []);
 
-  const handleStatusUpdate = async (resumeId: string, newStatus: Resume["status"], score?: number, notes?: string) => {
+  useEffect(() => {
+    if (user && !authLoading) {
+      loadAllResumes();
+      loadStats();
+    }
+  }, [user, authLoading, loadAllResumes, loadStats]);
+
+  const handleStatusUpdate = useCallback(async (resumeId: string, newStatus: Resume["status"], score?: number, notes?: string) => {
     try {
       const { resume, error } = await ResumeService.updateResumeStatus(resumeId, newStatus, score, notes);
       
@@ -93,18 +90,52 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Update local state
       setResumes(prev => prev.map(r => 
         r.id === resumeId ? { ...r, ...resume } : r
       ));
       
-      // Refresh stats
       await loadStats();
       
       setShowReviewModal(false);
       setSelectedResume(null);
     } catch (error) {
       setError('Failed to update resume status');
+    }
+  }, [loadStats]);
+
+  const handleDownload = async (resume: Resume) => {
+    try {
+      setError(''); // Clear any previous errors
+      
+      // Create a more robust download function
+      const response = await fetch(resume.file_url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch file');
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      
+      // Create a temporary link element to trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `resume_${resume.user_name?.split('@')[0] || 'user'}_${new Date(resume.created_at).toLocaleDateString().replace(/\//g, '_')}.pdf`;
+      link.style.display = 'none'; // Hide the link
+      
+      // Add to DOM, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Download failed:', error);
+      setError('Failed to download resume. Please try again.');
+      
+      // Fallback: open in new tab if download fails
+      window.open(resume.file_url, '_blank');
     }
   };
 
@@ -117,11 +148,10 @@ export default function AdminDashboard() {
 
   const filteredResumes = resumes.filter(resume => {
     const matchesStatus = statusFilter === "all" || resume.status === statusFilter;
-    const matchesSearch = (resume.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (resume.user_name || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
-  // Show loading screen if authenticating
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
@@ -130,7 +160,6 @@ export default function AdminDashboard() {
     );
   }
 
-  // Show login prompt if not authenticated
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
@@ -149,7 +178,6 @@ export default function AdminDashboard() {
     );
   }
 
-  // Show access denied if not admin
   if (user && !isAdmin()) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
@@ -214,7 +242,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -225,12 +252,12 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Link
+              {/* <Link
                 href="/"
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Resume Dashboard
-              </Link>
+              </Link> */}
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-gray-600">{user.profile?.email || user.email}</span>
                 {isSuperAdmin() && (
@@ -262,7 +289,6 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error Display */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-sm text-red-700">{error}</p>
@@ -275,14 +301,12 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Super Admin Section */}
         {isSuperAdmin() && (
           <div className="mb-8">
             <AdminInviteForm onInviteSuccess={() => console.log('Admin invited successfully')} />
           </div>
         )}
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <div className="flex items-center justify-between">
@@ -325,9 +349,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Resume Reviews */}
         <div className="bg-white rounded-lg shadow-sm border mb-8">
-              {/* Search and Filter */}
               <div className="p-6 border-b border-gray-200">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1 relative">
@@ -357,7 +379,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Resume List */}
               {loading ? (
                 <div className="p-12 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -372,14 +393,14 @@ export default function AdminDashboard() {
                         <div className="flex-shrink-0">
                           <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                             <span className="text-sm font-medium text-gray-600">
-                              {resume.user?.email?.charAt(0).toUpperCase() || 'U'}
+                              {resume.user_name?.charAt(0).toUpperCase() || 'U'}
                             </span>
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3 mb-1">
                             <p className="text-sm font-medium text-gray-900">
-                              {resume.user?.email || 'Unknown User'}
+                              {resume.user_name || 'Unknown User'}
                             </p>
                             <span className={getStatusBadge(resume.status)}>
                               {resume.status.replace("_", " ").toUpperCase()}
@@ -424,7 +445,7 @@ export default function AdminDashboard() {
                             <Eye className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => window.open(resume.file_url, '_blank')}
+                            onClick={() => handleDownload(resume)}
                             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                             title="Download resume"
                           >
@@ -452,7 +473,6 @@ export default function AdminDashboard() {
             </div>
         </main>
 
-      {/* Review Modal */}
       <ReviewModal
         resume={selectedResume!}
         isOpen={showReviewModal}

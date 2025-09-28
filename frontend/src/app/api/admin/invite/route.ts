@@ -1,40 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-server'
 import { AdminUtils } from '@/lib/admin-utils'
 
-/**
- * API endpoint to invite a new admin user
- * Only super admins can create admin invitations
- */
+
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
+    const { email, userId } = await request.json()
+
+    console.log("API route called with:", { email, userId })
+
+    if (!email || !userId) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: 'Email and user ID are required' },
+        { status: 400 }
       )
     }
 
-    // Check if user is super admin
-    const { data: userData, error: userError } = await supabase
+    // Check if service role key is available
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("SUPABASE_SERVICE_ROLE_KEY is not set")
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+
+    // Use admin client to verify user role
+    const adminClient = createAdminClient()
+    
+    // Check if the requesting user is super admin
+    const { data: userData, error: roleError } = await adminClient
       .from('users')
       .select('role')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
 
-    if (userError || !userData || userData.role !== 'super_admin') {
+    if (roleError) {
+      console.log("Role check error:", roleError)
+      return NextResponse.json(
+        { error: 'Failed to verify user permissions' },
+        { status: 500 }
+      )
+    }
+
+    if (!userData || userData.role !== 'super_admin') {
+      console.log("User is not super admin:", userData)
       return NextResponse.json(
         { error: 'Only super admins can create admin invitations' },
         { status: 403 }
       )
     }
 
-    const { email } = await request.json()
+    console.log("Super admin verified:", userId)
 
     if (!email) {
       return NextResponse.json(
@@ -43,7 +60,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       return NextResponse.json(
@@ -52,8 +68,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create admin invitation
-    const { success, error, inviteUrl } = await AdminUtils.createAdminInvitation(email, user.id)
+    const { success, error, inviteUrl } = await AdminUtils.createAdminInvitation(email, userId)
 
     if (!success) {
       return NextResponse.json(

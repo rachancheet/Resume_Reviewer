@@ -2,12 +2,14 @@
 
 import React, { useState } from 'react'
 import { UserPlus, Mail, AlertCircle, CheckCircle } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 
 interface AdminInviteFormProps {
   onInviteSuccess?: (email: string) => void
 }
 
 export default function AdminInviteForm({ onInviteSuccess }: AdminInviteFormProps) {
+  const { user } = useAuth()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -19,13 +21,23 @@ export default function AdminInviteForm({ onInviteSuccess }: AdminInviteFormProp
     setSuccess('')
     setIsLoading(true)
 
+    if (!user) {
+      setError('You must be logged in to send invitations')
+      setIsLoading(false)
+      return
+    }
+
     try {
       const response = await fetch('/api/admin/invite', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ 
+          email,
+          userId: user.id 
+        }),
+        credentials: 'include',
       })
 
       const data = await response.json()

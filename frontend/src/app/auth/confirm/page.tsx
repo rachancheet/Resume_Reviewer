@@ -13,14 +13,12 @@ function ConfirmPageContent() {
   useEffect(() => {
     const handleConfirmation = async () => {
       try {
-        // Check for hash parameters (magic link tokens)
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
         const type = hashParams.get('type')
 
         if (accessToken && refreshToken && type === 'magiclink') {
-          // Set the session using the tokens from the hash
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
@@ -32,10 +30,8 @@ function ConfirmPageContent() {
             return
           }
 
-          // Clear the hash to clean up the URL
           window.history.replaceState(null, '', window.location.pathname)
           
-          // Get user profile to determine role-based redirect
           const { data: { user } } = await supabase.auth.getUser()
           if (user) {
             const { data: profile } = await supabase
@@ -44,7 +40,6 @@ function ConfirmPageContent() {
               .eq('id', user.id)
               .single()
             
-            // Role-based redirect
             if (profile?.role === 'admin' || profile?.role === 'super_admin') {
               router.push('/admin')
             } else {
@@ -56,10 +51,8 @@ function ConfirmPageContent() {
           return
         }
 
-        // Check for query parameters (PKCE flow)
         const code = searchParams.get('code')
         if (code) {
-          // This should be handled by the callback route, but let's handle it here too
           const { error } = await supabase.auth.exchangeCodeForSession(code)
           
           if (error) {
@@ -68,7 +61,6 @@ function ConfirmPageContent() {
             return
           }
           
-          // Get user profile to determine role-based redirect
           const { data: { user } } = await supabase.auth.getUser()
           if (user) {
             const { data: profile } = await supabase
@@ -77,7 +69,6 @@ function ConfirmPageContent() {
               .eq('id', user.id)
               .single()
             
-            // Role-based redirect
             if (profile?.role === 'admin' || profile?.role === 'super_admin') {
               router.push('/admin')
             } else {
@@ -89,7 +80,6 @@ function ConfirmPageContent() {
           return
         }
 
-        // If no auth data found, check current session
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
@@ -99,7 +89,6 @@ function ConfirmPageContent() {
         }
 
         if (session) {
-          // Already authenticated, determine role-based redirect
           const { data: profile } = await supabase
             .from('users')
             .select('role')

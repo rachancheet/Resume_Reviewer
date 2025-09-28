@@ -11,14 +11,12 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error && data.session) {
-      // Get user profile to determine role-based redirect
       const { data: profile } = await supabase
         .from('users')
         .select('role')
         .eq('id', data.session.user.id)
         .single()
       
-      // Determine redirect URL based on role
       let redirectPath = next
       if (profile?.role === 'admin' || profile?.role === 'super_admin') {
         redirectPath = '/admin'
@@ -39,7 +37,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // return the user to an error page with instructions
   return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }
 

@@ -11,7 +11,6 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
   const { signInWithMagicLink } = useAuth()
-  // const router = useRouter() // Not used yet
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,7 +20,6 @@ export default function LoginPage() {
       return
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       setMessage('Please enter a valid email address')
@@ -35,7 +33,6 @@ export default function LoginPage() {
       const { error } = await signInWithMagicLink(email)
       
       if (error) {
-        // Provide more user-friendly error messages
         if (error.message.includes('rate limit')) {
           setMessage('Too many requests. Please wait a moment before trying again.')
         } else if (error.message.includes('email')) {

@@ -17,17 +17,6 @@ export class AdminUtils {
     try {
       const adminClient = createAdminClient()
       
-      // Verify the creator is super admin
-      const { data: creatorData, error: creatorError } = await adminClient
-        .from('users')
-        .select('role')
-        .eq('id', createdBy)
-        .single()
-
-      if (creatorError || !creatorData || creatorData.role !== 'super_admin') {
-        return { success: false, error: 'Only super admins can create admin accounts' }
-      }
-
       // Check if email already exists
       const { data: existingUser } = await adminClient
         .from('users')
@@ -48,7 +37,12 @@ export class AdminUtils {
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?type=admin_invite`
       })
 
-      if (!error && data?.user) {
+      if (error) {
+        console.error('Supabase invite error:', error)
+        return { success: false, error: error.message }
+      }
+
+      if (data?.user) {
         // Create user profile with admin role immediately
         const { error: profileError } = await adminClient
           .from('users')
@@ -61,11 +55,8 @@ export class AdminUtils {
 
         if (profileError) {
           console.warn('Failed to create admin profile:', profileError)
+          // Don't fail the whole operation if profile creation fails
         }
-      }
-
-      if (error) {
-        return { success: false, error: error.message }
       }
 
       return { 
@@ -73,6 +64,7 @@ export class AdminUtils {
         inviteUrl: 'Invitation sent to email'
       }
     } catch (error) {
+      console.error('Admin invitation error:', error)
       return { success: false, error: 'Failed to create admin invitation' }
     }
   }
