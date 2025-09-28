@@ -114,7 +114,7 @@ export function useAuth() {
       return url
     }
     
-console.log("email redirect to ",getURL())
+// console.log("email redirect to ",getURL())
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
