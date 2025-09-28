@@ -33,7 +33,7 @@ CREATE POLICY "Users can view own profile" ON users
 
 CREATE POLICY "Users can update own profile" ON users
     FOR UPDATE USING (auth.uid() = id);
-
+1
 CREATE POLICY "Users can insert own profile" ON users
     FOR INSERT WITH CHECK (auth.uid() = id);
 
@@ -50,7 +50,7 @@ CREATE POLICY "Users can update own resumes" ON resumes
 CREATE POLICY "Users can delete own resumes" ON resumes
     FOR DELETE USING (auth.uid() = user_id);
 
--- -- Admin policies for resumes (role-based)
+-- Admin policies for resumes (role-based)
 CREATE POLICY "Admins can view all resumes" ON resumes
     FOR SELECT USING (
         EXISTS (
@@ -69,32 +69,32 @@ CREATE POLICY "Admins can update all resumes" ON resumes
         )
     );
 
--- -- Service role policies (for backend operations)
--- CREATE POLICY "Service role can view all resumes" ON resumes
---     FOR SELECT USING (current_setting('role') = 'service_role');
+-- Service role policies (for backend operations)
+CREATE POLICY "Service role can view all resumes" ON resumes
+    FOR SELECT USING (current_setting('role') = 'service_role');
 
--- CREATE POLICY "Service role can update all resumes" ON resumes
---     FOR UPDATE USING (current_setting('role') = 'service_role');
+CREATE POLICY "Service role can update all resumes" ON resumes
+    FOR UPDATE USING (current_setting('role') = 'service_role');
 
 -- Admin policy for users table
--- CREATE POLICY "Admins can view all users" ON users
---     FOR SELECT USING (
---         EXISTS (
---             SELECT 1 FROM users u 
---             WHERE u.id = auth.uid() 
---             AND u.role IN ('admin', 'super_admin')
---         )
---     );
+CREATE POLICY "Admins can view all users" ON users
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM users u 
+            WHERE u.id = auth.uid() 
+            AND u.role IN ('admin', 'super_admin')
+        )
+    );
 
--- -- Super admin policies for user management
--- CREATE POLICY "Super admins can manage all users" ON users
---     FOR ALL USING (
---         EXISTS (
---             SELECT 1 FROM users u 
---             WHERE u.id = auth.uid() 
---             AND u.role = 'super_admin'
---         )
---     );
+-- Super admin policies for user management
+CREATE POLICY "Super admins can manage all users" ON users
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM users u 
+            WHERE u.id = auth.uid() 
+            AND u.role = 'super_admin'
+        )
+    );
 
 -- Create indexes for better performance
 CREATE INDEX idx_resumes_user_id ON resumes(user_id);
@@ -132,6 +132,23 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- -- Insert predefined super admin (replace with your actual super admin email)
+-- -- This should be done manually in production with a real UUID
+-- INSERT INTO auth.users (id, email, email_confirmed_at, created_at, updated_at)
+-- VALUES (
+--     'super-admin-uuid-replace-with-real',
+--     'superadmin@yourcompany.com',
+--     NOW(),
+--     NOW(),
+--     NOW()
+-- ) ON CONFLICT (email) DO NOTHING;
+
+-- INSERT INTO users (id, email, role) 
+-- VALUES (
+--     'super-admin-uuid-replace-with-real',
+--     'superadmin@yourcompany.com',
+--     'super_admin'
+-- ) ON CONFLICT (id) DO NOTHING;
 
 -- Create storage bucket for resumes
 INSERT INTO storage.buckets (id, name, public) VALUES ('resumes', 'resumes', false);

@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { AdminUtils } from '@/lib/admin-utils'
 
-
+/**
+ * API endpoint to invite a new admin user
+ * Only super admins can create admin invitations
+ */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     
+    // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
@@ -16,6 +20,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if user is super admin
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('role')
@@ -38,6 +43,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       return NextResponse.json(
@@ -46,6 +52,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Create admin invitation
     const { success, error, inviteUrl } = await AdminUtils.createAdminInvitation(email, user.id)
 
     if (!success) {

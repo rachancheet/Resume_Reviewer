@@ -57,6 +57,7 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
           </button>
         </div>
         
+        {/* Resume Info */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <div className="space-y-2">
             <p className="text-sm">
@@ -102,6 +103,7 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
           </div>
         </div>
 
+        {/* Quick Actions */}
         <div className="mb-6">
           <h4 className="text-sm font-medium text-gray-900 mb-3">Quick Actions</h4>
           <div className="grid grid-cols-1 gap-2">
@@ -134,8 +136,11 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
           </div>
         </div>
 
+        {/* Custom Review */}
         <div className="border-t border-gray-200 pt-6">
           <h4 className="text-sm font-medium text-gray-900 mb-4">Custom Review</h4>
+          
+          {/* Status Selection */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
             <select
@@ -150,6 +155,7 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
             </select>
           </div>
 
+          {/* Score Input */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Score: {score}/100
@@ -174,6 +180,7 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
             </div>
           </div>
 
+          {/* Notes Input */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
             <textarea
@@ -185,6 +192,7 @@ export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: Revie
             />
           </div>
 
+          {/* Submit Button */}
           <button
             onClick={handleSubmit}
             disabled={!selectedStatus || isSubmitting}

@@ -7,8 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { ResumeService } from "@/lib/resume-service";
 import FileUpload from "@/components/FileUpload";
 import type { Resume } from "@/lib/supabase";
-import { redirect } from 'next/navigation';
 
+// Leaderboard will be fetched from API
 
 export default function ResumeDashboard() {
   const { user, loading: authLoading, signOut, isAdmin } = useAuth();
@@ -29,16 +29,14 @@ export default function ResumeDashboard() {
   const [error, setError] = useState<string>('');
   const [message, setMessage] = useState<string>('');
 
+  // Load user's resumes on component mount
   useEffect(() => {
     if (user) {
       loadResumes();
     }
-    if(isAdmin()){
-
-redirect("/admin")
-    }
   }, [user]);
 
+  // Load leaderboard when leaderboard tab is active
   useEffect(() => {
     if (activeTab === 'leaderboard' && leaderboardData.length === 0) {
       loadLeaderboard();
@@ -92,6 +90,7 @@ redirect("/admin")
     setMessage('');
 
     try {
+      // Upload file to storage with progress tracking
       const { url: fileUrl, error: uploadError } = await ResumeService.uploadResumeFile(
         selectedFile, 
         user.id,
@@ -105,7 +104,8 @@ redirect("/admin")
         return;
       }
 
-      const { resume, error: createError } = await ResumeService.createResume(user.id, user.email ,fileUrl!, selectedFile.name);
+      // Create resume record
+      const { resume, error: createError } = await ResumeService.createResume(user.id, fileUrl!, selectedFile.name);
       
       setUploadProgress(100);
 
@@ -114,7 +114,7 @@ redirect("/admin")
       } else {
         setMessage('Resume uploaded successfully!');
         setSelectedFile(null);
-        await loadResumes(); 
+        await loadResumes(); // Refresh the list
       }
     } catch (error) {
       setError('Upload failed. Please try again.');
@@ -143,6 +143,7 @@ redirect("/admin")
     }
   };
 
+  // Show login screen if not authenticated
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
@@ -198,6 +199,7 @@ redirect("/admin")
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -247,6 +249,7 @@ redirect("/admin")
           <p className="text-gray-600">Upload your resume and track its review status</p>
         </div>
 
+        {/* Tab Navigation */}
         <div className="bg-white rounded-xl shadow-sm border mb-8">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
@@ -281,6 +284,7 @@ redirect("/admin")
 
           {activeTab === "dashboard" && (
             <div>
+              {/* Upload Section */}
               <div className="p-6 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload New Resume</h3>
                 
@@ -311,6 +315,7 @@ redirect("/admin")
                 )}
               </div>
 
+              {/* Resume List */}
               <div>
                 <div className="p-6 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">Your Resumes</h3>

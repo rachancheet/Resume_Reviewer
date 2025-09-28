@@ -23,6 +23,7 @@ export function useAuth() {
 
       if (error) {
         console.error('Error fetching user profile:', error)
+        // If user profile doesn't exist, create it
         if (error.code === 'PGRST116') {
           const { data: { user } } = await supabase.auth.getUser()
           if (user) {
@@ -54,6 +55,7 @@ export function useAuth() {
   }
 
   useEffect(() => {
+    // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
@@ -69,6 +71,7 @@ export function useAuth() {
 
     getSession()
 
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.id)

@@ -22,6 +22,7 @@ import type { Resume, User } from "@/lib/supabase";
 import ReviewModal from "@/components/ReviewModal";
 import AdminInviteForm from "@/components/AdminInviteForm";
 
+// Extended Resume interface for admin view
 interface AdminResumeView extends Resume {
   user?: User;
 }
@@ -45,6 +46,7 @@ export default function AdminDashboard() {
     avgScore: 0
   });
 
+  // Load all resumes and stats
   useEffect(() => {
     if (user) {
       loadAllResumes();
@@ -91,10 +93,12 @@ export default function AdminDashboard() {
         return;
       }
 
+      // Update local state
       setResumes(prev => prev.map(r => 
         r.id === resumeId ? { ...r, ...resume } : r
       ));
       
+      // Refresh stats
       await loadStats();
       
       setShowReviewModal(false);
@@ -117,6 +121,7 @@ export default function AdminDashboard() {
     return matchesStatus && matchesSearch;
   });
 
+  // Show loading screen if authenticating
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
@@ -125,6 +130,7 @@ export default function AdminDashboard() {
     );
   }
 
+  // Show login prompt if not authenticated
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
@@ -143,6 +149,7 @@ export default function AdminDashboard() {
     );
   }
 
+  // Show access denied if not admin
   if (user && !isAdmin()) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
@@ -207,6 +214,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -217,12 +225,12 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              {/* <Link
+              <Link
                 href="/"
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Resume Dashboard
-              </Link> */}
+              </Link>
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-gray-600">{user.profile?.email || user.email}</span>
                 {isSuperAdmin() && (
@@ -254,6 +262,7 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Display */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-sm text-red-700">{error}</p>
@@ -266,12 +275,14 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Super Admin Section */}
         {isSuperAdmin() && (
           <div className="mb-8">
             <AdminInviteForm onInviteSuccess={() => console.log('Admin invited successfully')} />
           </div>
         )}
 
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <div className="flex items-center justify-between">
@@ -314,7 +325,9 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Resume Reviews */}
         <div className="bg-white rounded-lg shadow-sm border mb-8">
+              {/* Search and Filter */}
               <div className="p-6 border-b border-gray-200">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1 relative">
@@ -344,6 +357,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Resume List */}
               {loading ? (
                 <div className="p-12 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -438,6 +452,7 @@ export default function AdminDashboard() {
             </div>
         </main>
 
+      {/* Review Modal */}
       <ReviewModal
         resume={selectedResume!}
         isOpen={showReviewModal}
