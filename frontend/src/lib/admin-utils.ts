@@ -1,3 +1,4 @@
+import { getURL } from 'next/dist/shared/lib/utils';
 import { createAdminClient } from './supabase-server'
 
 /**
@@ -27,6 +28,15 @@ export class AdminUtils {
       if (existingUser) {
         return { success: false, error: 'User with this email already exists' }
       }
+      
+    const getURL = () => {
+      let url = process?.env?.NEXT_PUBLIC_SITE_URL ?? process?.env?.NEXT_PUBLIC_VERCEL_URL ??'http://localhost:3000/'
+      
+      url = url.startsWith('http') ? url : `https://${url}`
+      url = url.endsWith('/') ? url : `${url}/`
+      return url
+    }
+    
 
       // Create admin invitation using Supabase Admin API
       const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
@@ -34,7 +44,7 @@ export class AdminUtils {
           role: 'admin',
           created_by: createdBy
         },
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://rachancheet-resume-reviewer.vercel.app'}/auth/confirm?type=admin_invite`
+        redirectTo: getURL()
       })
 
       if (error) {

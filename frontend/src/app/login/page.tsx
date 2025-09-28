@@ -30,6 +30,7 @@ export default function LoginPage() {
     setMessage('')
 
     try {
+      console.log("awaiting signinwithmagiclink")
       const { error } = await signInWithMagicLink(email)
       
       if (error) {

@@ -106,12 +106,19 @@ export function useAuth() {
 
   const signInWithMagicLink = useCallback(async (email: string): Promise<{ error?: AuthError | null }> => {
 
-
+    const getURL = () => {
+      let url = process?.env?.NEXT_PUBLIC_SITE_URL ?? process?.env?.NEXT_PUBLIC_VERCEL_URL ??'http://localhost:3000/'
+      
+      url = url.startsWith('http') ? url : `https://${url}`
+      url = url.endsWith('/') ? url : `${url}/`
+      return url
+    }
+    
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://rachancheet-resume-reviewer.vercel.app'}/auth/confirm`
+              emailRedirectTo: getURL(),
       }
     })
     return { error }
