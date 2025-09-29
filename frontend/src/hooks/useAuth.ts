@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { User as SupabaseUser, AuthError } from '@supabase/supabase-js'
+import { useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { User } from '@/lib/supabase'
 
@@ -9,6 +8,7 @@ import type { User } from '@/lib/supabase'
 interface AuthUser {
   id: string;
   email: string;
+  display_name?: string | null;
   profile?: User | null;
 }
 
@@ -61,7 +61,12 @@ export function useAuth() {
 
       const profile = await fetchUserProfile(user.id)
       // console.log("got user profile",profile)
-      return { ...user, profile }
+      return { 
+        id: user.id,
+        email: user.email!,
+        display_name: user.user_metadata?.display_name || null,
+        profile 
+      }
     } catch (err) {
       console.error('Unexpected error in getUserWithProfile:', err)
       return null

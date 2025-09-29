@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
-import { X, Star } from 'lucide-react'
-import type { Resume, User } from '@/lib/supabase'
+import React, { useState, useEffect } from 'react'
+import { X, Star, FileText, Calendar, User } from 'lucide-react'
+import type { Resume } from '@/lib/supabase'
 
 interface ReviewModalProps {
   resume: Resume
@@ -13,185 +13,247 @@ interface ReviewModalProps {
 
 export default function ReviewModal({ resume, isOpen, onClose, onSubmit }: ReviewModalProps) {
   const [selectedStatus, setSelectedStatus] = useState<Resume['status'] | ''>('')
-  const [score, setScore] = useState<number>(75)
+  const [score, setScore] = useState<string>('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Initialize form with current resume data when modal opens
+  useEffect(() => {
+    if (isOpen && resume) {
+      setSelectedStatus(resume.status || '')
+      setScore(resume.score?.toString() || '')
+      setNotes(resume.notes || '')
+    }
+  }, [isOpen, resume])
 
   if (!isOpen || !resume) return null
 
   const handleSubmit = async () => {
     if (!selectedStatus) return
 
+    const scoreNumber = score ? parseInt(score, 10) : undefined
+    if (scoreNumber !== undefined && (scoreNumber < 0 || scoreNumber > 100)) {
+      alert('Score must be between 0 and 100')
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      await onSubmit(resume.id, selectedStatus, score, notes)
+      await onSubmit(resume.id, selectedStatus, scoreNumber, notes)
       onClose()
-      setSelectedStatus('')
-      setScore(75)
-      setNotes('')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleQuickAction = async (status: Resume['status'], quickScore: number, quickNotes: string) => {
-    setIsSubmitting(true)
-    try {
-      await onSubmit(resume.id, status, quickScore, quickNotes)
-      onClose()
-    } finally {
-      setIsSubmitting(false)
-    }
+  const handleClose = () => {
+    setSelectedStatus('')
+    setScore('')
+    setNotes('')
+    onClose()
   }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Review Resume</h3>
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Review Resume</h3>
+              <p className="text-sm text-gray-500">Evaluate candidate submission</p>
+            </div>
+          </div>
           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <div className="space-y-2">
-            <p className="text-sm">
-              <span className="font-medium text-gray-700">Candidate:</span>{' '}
-              <span className="text-gray-900">{resume.user_name}</span>
-            </p>
-            <p className="text-sm">
-              <span className="font-medium text-gray-700">Uploaded:</span>{' '}
-              <span className="text-gray-900">{new Date(resume.created_at).toLocaleDateString()}</span>
-            </p>
-            <p className="text-sm">
-              <span className="font-medium text-gray-700">Current Status:</span>{' '}
-              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                resume.status === 'approved' ? 'bg-green-100 text-green-800' :
-                resume.status === 'needs_revision' ? 'bg-yellow-100 text-yellow-800' :
-                resume.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {resume.status.replace('_', ' ').toUpperCase()}
-              </span>
-            </p>
-            {resume.score && (
-              <p className="text-sm">
-                <span className="font-medium text-gray-700">Current Score:</span>{' '}
-                <span className="text-gray-900">{resume.score}/100</span>
-              </p>
-            )}
-            {resume.notes && (
-              <p className="text-sm">
-                <span className="font-medium text-gray-700">Previous Notes:</span>{' '}
-                <span className="text-gray-900 italic">&quot;{resume.notes}&quot;</span>
-              </p>
-            )}
-          </div>
-          
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <button
-              onClick={() => window.open(resume.file_url, '_blank')}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              View Resume →
-            </button>
-          </div>
-        </div>
 
-        <div className="mb-6">
-          <h4 className="text-sm font-medium text-gray-900 mb-3">Quick Actions</h4>
-          <div className="grid grid-cols-1 gap-2">
-            <button
-              onClick={() => handleQuickAction('approved', 85, 'Approved - meets requirements')}
-              disabled={isSubmitting}
-              className="p-3 text-left bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <div className="font-medium text-green-800">Approve (Score: 85)</div>
-              <div className="text-sm text-green-700">Meets all requirements</div>
-            </button>
-            
-            <button
-              onClick={() => handleQuickAction('needs_revision', 65, 'Needs revision - minor improvements needed')}
-              disabled={isSubmitting}
-              className="p-3 text-left bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <div className="font-medium text-yellow-800">Needs Revision (Score: 65)</div>
-              <div className="text-sm text-yellow-700">Minor improvements needed</div>
-            </button>
-            
-            <button
-              onClick={() => handleQuickAction('rejected', 35, 'Rejected - does not meet requirements')}
-              disabled={isSubmitting}
-              className="p-3 text-left bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <div className="font-medium text-red-800">Reject (Score: 35)</div>
-              <div className="text-sm text-red-700">Does not meet requirements</div>
-            </button>
-          </div>
-        </div>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Resume Info */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <User className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Candidate</p>
+                    <p className="text-sm font-medium text-gray-900">{resume.user_name}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Submitted</p>
+                    <p className="text-sm text-gray-900">{new Date(resume.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
 
-        <div className="border-t border-gray-200 pt-6">
-          <h4 className="text-sm font-medium text-gray-900 mb-4">Custom Review</h4>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value as Resume['status'])}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select status...</option>
-              <option value="approved">Approved</option>
-              <option value="needs_revision">Needs Revision</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Current Status</p>
+                  <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                    resume.status === 'approved' ? 'bg-green-100 text-green-800' :
+                    resume.status === 'needs_revision' ? 'bg-yellow-100 text-yellow-800' :
+                    resume.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {resume.status.replace('_', ' ').toUpperCase()}
+                  </span>
+                </div>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Score: {score}/100
-            </label>
-            <div className="flex items-center space-x-3">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={score}
-                onChange={(e) => setScore(Number(e.target.value))}
-                className="flex-1"
-              />
-              <div className="flex items-center space-x-1">
-                <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                <span className="text-sm font-medium text-gray-900 w-8">{score}</span>
+                {resume.score && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Current Score</p>
+                    <div className="flex items-center space-x-1">
+                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                      <span className="text-sm font-medium text-gray-900">{resume.score}/100</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>Poor</span>
-              <span>Excellent</span>
+
+            {resume.file_name && (
+              <div className="mt-3 pt-3 border-t border-blue-200">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">File</p>
+                <p className="text-sm text-gray-900">{resume.file_name}</p>
+              </div>
+            )}
+            
+            <div className="mt-4 pt-3 border-t border-blue-200">
+              <button
+                onClick={() => window.open(resume.file_url, '_blank')}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                View Resume
+              </button>
             </div>
           </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add your review notes..."
-              rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-            />
-          </div>
+          {resume.notes && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs font-medium text-amber-800 uppercase tracking-wide mb-2">Previous Review Notes</p>
+              <p className="text-sm text-amber-900 italic">&quot;{resume.notes}&quot;</p>
+            </div>
+          )}
 
-          <button
-            onClick={handleSubmit}
-            disabled={!selectedStatus || isSubmitting}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? 'Submitting...' : 'Submit Review'}
-          </button>
+          {/* Review Form */}
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-3">Review Status</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatus('approved')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    selectedStatus === 'approved'
+                      ? 'border-green-500 bg-green-50 text-green-900'
+                      : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="font-medium">Approved</div>
+                    <div className="text-xs text-gray-600 mt-1">Meets requirements</div>
+                  </div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatus('needs_revision')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    selectedStatus === 'needs_revision'
+                      ? 'border-yellow-500 bg-yellow-50 text-yellow-900'
+                      : 'border-gray-200 hover:border-yellow-300 hover:bg-yellow-50'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="font-medium">Needs Revision</div>
+                    <div className="text-xs text-gray-600 mt-1">Minor improvements</div>
+                  </div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatus('rejected')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    selectedStatus === 'rejected'
+                      ? 'border-red-500 bg-red-50 text-red-900'
+                      : 'border-gray-200 hover:border-red-300 hover:bg-red-50'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="font-medium">Rejected</div>
+                    <div className="text-xs text-gray-600 mt-1">Does not meet criteria</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Score (0-100)
+              </label>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={score}
+                  onChange={(e) => setScore(e.target.value)}
+                  placeholder="Enter score"
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <div className="flex items-center space-x-1 text-gray-500">
+                  <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                  <span className="text-sm font-medium">/100</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Enter a score between 0 and 100</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">Review Notes</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Provide detailed feedback for the candidate..."
+                rows={6}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">Your feedback will help the candidate improve</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-end space-x-3">
+            <button
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!selectedStatus || isSubmitting}
+              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Review'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

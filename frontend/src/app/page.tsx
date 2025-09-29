@@ -12,6 +12,7 @@ import AdminDashboard from "@/components/AdminDashboard";
 interface AuthUser {
   id: string;
   email: string;
+  display_name?: string | null;
   profile?: User | null;
 }
 
@@ -26,8 +27,8 @@ export default function Dashboard() {
     const loadUser = async () => {
       setLoading(true);
       console.log("tring to fetch user")
-      const  fetchedUser  = await getUser();
-      console.log("got user",fetchedUser)
+      const fetchedUser = await getUser();
+      console.log("got user", fetchedUser)
       if (mounted) {
         if (!fetchedUser) {
           console.error('Error fetching user:');
@@ -92,16 +93,16 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <FileText className="w-8 h-8 text-blue-600" />
+              <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+                <img src="/resume-icon-16.jpg" alt="Resume Platform" className="w-8 h-8" />
                 <h1 className="text-xl font-bold text-gray-900">
                   {isAdmin ? "Admin Dashboard" : "Resume Platform"}
                 </h1>
-              </div>
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-600">{user.profile?.email || user.email}</span>
+                <span className="text-sm text-gray-600">{user.display_name || user.profile?.email || user.email}</span>
                 {isSuperAdmin && (
                   <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
                     Super Admin
@@ -119,11 +120,10 @@ export default function Dashboard() {
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  isAdmin ? 'bg-purple-600' : 'bg-blue-600'
-                }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isAdmin ? 'bg-purple-600' : 'bg-blue-600'
+                  }`}>
                   <span className="text-white font-medium text-sm">
-                    {(user.profile?.email || user.email)?.charAt(0).toUpperCase()}
+                    {(user.display_name || user.profile?.email || user.email)?.charAt(0).toUpperCase()}
                   </span>
                 </div>
               </div>

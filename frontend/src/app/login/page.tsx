@@ -3,30 +3,38 @@
 import { useState, useCallback } from 'react'
 import { AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import { Mail, ArrowRight, CheckCircle } from 'lucide-react'
+import { Mail, ArrowRight, CheckCircle, User } from 'lucide-react'
 
 export default function LoginPage() {
+  const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
 
-  const signInWithMagicLink = useCallback(async (email: string): Promise<{ error?: AuthError | null }> => {
-
+  const signInWithMagicLink = useCallback(async (email: string, displayName?: string): Promise<{ error?: AuthError | null }> => {
     const getURL = () => {
-      let url = process?.env?.NEXT_PUBLIC_SITE_URL ?? process?.env?.NEXT_PUBLIC_VERCEL_URL ??'http://localhost:3000/'
-
+      let url = process?.env?.NEXT_PUBLIC_SITE_URL ?? process?.env?.NEXT_PUBLIC_VERCEL_URL ?? 'http://localhost:3000/'
       url = url.startsWith('http') ? url : `https://${url}`
       url = url.endsWith('/') ? url : `${url}/`
       return url
     }
     
-    // console.log("email redirect to ",getURL())
+    const options: any = {
+      emailRedirectTo: getURL(),
+    }
+
+    // Add display name for sign up
+    if (displayName) {
+      options.data = {
+        display_name: displayName
+      }
+    }
+    
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-              emailRedirectTo: getURL(),   
-      }
+      options
     })
     return { error }
   }, [])
@@ -36,6 +44,11 @@ export default function LoginPage() {
     
     if (!email) {
       setMessage('Please enter your email address')
+      return
+    }
+
+    if (isSignUp && !name.trim()) {
+      setMessage('Please enter your name')
       return
     }
 
@@ -49,8 +62,7 @@ export default function LoginPage() {
     setMessage('')
 
     try {
-      console.log("awaiting signinwithmagiclink")
-      const { error } = await signInWithMagicLink(email)
+      const { error } = await signInWithMagicLink(email, isSignUp ? name.trim() : undefined)
       
       if (error) {
         if (error.message.includes('rate limit')) {
@@ -92,6 +104,7 @@ export default function LoginPage() {
               onClick={() => {
                 setIsEmailSent(false)
                 setEmail('')
+                setName('')
                 setMessage('')
               }}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
@@ -109,13 +122,69 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Mail className="w-8 h-8 text-white" />
+            {isSignUp ? <User className="w-8 h-8 text-white" /> : <Mail className="w-8 h-8 text-white" />}
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Sign in to access your resume dashboard</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {isSignUp ? 'Create Account' : 'Welcome Back'}
+          </h1>
+          <p className="text-gray-600">
+            {isSignUp ? 'Join our resume review platform' : 'Sign in to access your resume dashboard'}
+          </p>
+        </div>
+
+        {/* Toggle between Sign In and Sign Up */}
+        <div className="mb-6">
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(false)
+                setName('')
+                setMessage('')
+              }}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                !isSignUp
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(true)
+                setMessage('')
+              }}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                isSignUp
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {isSignUp && (
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter your full name"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-black"
+                required={isSignUp}
+              />
+            </div>
+          )}
+
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email Address
@@ -150,7 +219,7 @@ export default function LoginPage() {
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <span>Send Magic Link</span>
+                <span>{isSignUp ? 'Create Account' : 'Send Magic Link'}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -160,7 +229,7 @@ export default function LoginPage() {
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800">
-              <strong>Magic Link Authentication:</strong> We&apos;ll send you a secure link to sign in without a password.
+              <strong>Magic Link Authentication:</strong> We&apos;ll send you a secure link to {isSignUp ? 'create your account' : 'sign in'} without a password.
             </p>
           </div>
         </div>

@@ -1,34 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase-server'
+import { createClient, createAdminClient } from '@/lib/supabase-server'
 import { AdminUtils } from '@/lib/admin-utils'
-
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, userId } = await request.json()
+    const { email } = await request.json()
 
-    console.log("API route called with:", { email, userId })
+    console.log("API route called with email:", email)
 
-    if (!email || !userId) {
+    if (!email) {
       return NextResponse.json(
-        { error: 'Email and user ID are required' },
+        { error: 'Email is required' },
         { status: 400 }
       )
     }
 
-    // Check if service role key is available
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("SUPABASE_SERVICE_ROLE_KEY is not set")
+    const supabase = await createClient()
+    
+    // console.log("server trying to get session")
+    // Get user session
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
+
+    // console.log("got session",session)
+
+    if (sessionError || !session) {
       return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
+        { error: 'Authentication required' },
+        { status: 401 }
       )
     }
 
-    // Use admin client to verify user role
-    const adminClient = createAdminClient()
+    const userId = session.user.id
+    console.log("Authenticated user:", userId)
     
-    // Check if the requesting user is super admin
+    const adminClient = createAdminClient()
     const { data: userData, error: roleError } = await adminClient
       .from('users')
       .select('role')

@@ -10,9 +10,10 @@ import {
   Download, 
   Star, 
   Users, 
-  TrendingUp,
   Search,
-  ChevronDown
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { ResumeService } from "@/lib/resume-service";
 import type { Resume } from "@/lib/supabase";
@@ -30,6 +31,7 @@ export default function AdminDashboard({ user, isSuperAdmin }: AdminDashboardPro
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // desc = newest first
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [resumeStats, setResumeStats] = useState({
@@ -131,11 +133,17 @@ export default function AdminDashboard({ user, isSuperAdmin }: AdminDashboardPro
     }
   };
 
-  const filteredResumes = resumes.filter(resume => {
-    const matchesStatus = statusFilter === "all" || resume.status === statusFilter;
-    const matchesSearch = (resume.user_name || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const filteredResumes = resumes
+    .filter(resume => {
+      const matchesStatus = statusFilter === "all" || resume.status === statusFilter;
+      const matchesSearch = (resume.user_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
 
   const getStatusIcon = (status: Resume["status"]) => {
     switch (status) {
@@ -184,7 +192,7 @@ export default function AdminDashboard({ user, isSuperAdmin }: AdminDashboardPro
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -214,22 +222,12 @@ export default function AdminDashboard({ user, isSuperAdmin }: AdminDashboardPro
             <CheckCircle className="w-8 h-8 text-green-500" />
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Average Score</p>
-              <p className="text-2xl font-bold text-gray-900">{resumeStats.avgScore}%</p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-purple-500" />
-          </div>
-        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border mb-8">
         <div className="p-6 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
+          <div className="space-y-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
@@ -239,19 +237,77 @@ export default function AdminDashboard({ user, isSuperAdmin }: AdminDashboardPro
                 className="text-black w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-black appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    statusFilter === "all"
+                      ? "bg-blue-100 text-blue-800 border border-blue-200"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                  }`}
+                >
+                  All ({resumes.length})
+                </button>
+                
+                <button
+                  onClick={() => setStatusFilter("pending")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    statusFilter === "pending"
+                      ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                  }`}
+                >
+                  Pending ({resumes.filter(r => r.status === "pending").length})
+                </button>
+                
+                <button
+                  onClick={() => setStatusFilter("approved")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    statusFilter === "approved"
+                      ? "bg-green-100 text-green-800 border border-green-200"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                  }`}
+                >
+                  Approved ({resumes.filter(r => r.status === "approved").length})
+                </button>
+                
+                <button
+                  onClick={() => setStatusFilter("needs_revision")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    statusFilter === "needs_revision"
+                      ? "bg-orange-100 text-orange-800 border border-orange-200"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                  }`}
+                >
+                  Needs Revision ({resumes.filter(r => r.status === "needs_revision").length})
+                </button>
+                
+                <button
+                  onClick={() => setStatusFilter("rejected")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    statusFilter === "rejected"
+                      ? "bg-red-100 text-red-800 border border-red-200"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                  }`}
+                >
+                  Rejected ({resumes.filter(r => r.status === "rejected").length})
+                </button>
+              </div>
+              
+              <button
+                onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+                title={`Sort by date ${sortOrder === 'desc' ? 'ascending' : 'descending'}`}
               >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="needs_revision">Needs Revision</option>
-                <option value="rejected">Rejected</option>
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                {sortOrder === 'desc' ? (
+                  <ArrowDown className="w-4 h-4" />
+                ) : (
+                  <ArrowUp className="w-4 h-4" />
+                )}
+                <span>{sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -264,7 +320,14 @@ export default function AdminDashboard({ user, isSuperAdmin }: AdminDashboardPro
         ) : (
           <div className="divide-y divide-gray-200">
             {filteredResumes.map((resume) => (
-            <div key={resume.id} className="p-6 hover:bg-gray-50 transition-colors">
+            <div 
+              key={resume.id} 
+              className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+              onClick={() => {
+                setSelectedResume(resume);
+                setShowReviewModal(true);
+              }}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 flex-1">
                   <div className="flex-shrink-0">
@@ -306,8 +369,7 @@ export default function AdminDashboard({ user, isSuperAdmin }: AdminDashboardPro
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3">
-                  {getStatusIcon(resume.status)}
+                <div className="flex items-center space-x-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => {
