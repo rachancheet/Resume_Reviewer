@@ -31,23 +31,7 @@ function ConfirmPageContent() {
           }
 
           window.history.replaceState(null, '', window.location.pathname)
-          
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            const { data: profile } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', user.id)
-              .single()
-            
-            if (profile?.role === 'admin' || profile?.role === 'super_admin') {
-              router.push('/admin')
-            } else {
-              router.push('/')
-            }
-          } else {
-            router.push('/')
-          }
+          router.push('/')
           return
         }
 
@@ -61,22 +45,7 @@ function ConfirmPageContent() {
             return
           }
           
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            const { data: profile } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', user.id)
-              .single()
-            
-            if (profile?.role === 'admin' || profile?.role === 'super_admin') {
-              router.push('/admin')
-            } else {
-              router.push('/')
-            }
-          } else {
-            router.push('/')
-          }
+          router.push('/')
           return
         }
 
@@ -89,17 +58,7 @@ function ConfirmPageContent() {
         }
 
         if (session) {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', session.user.id)
-            .single()
-          
-          if (profile?.role === 'admin' || profile?.role === 'super_admin') {
-            router.push('/admin')
-          } else {
-            router.push('/')
-          }
+          router.push('/')
         } else {
           setError('No authentication data found')
           setIsLoading(false)

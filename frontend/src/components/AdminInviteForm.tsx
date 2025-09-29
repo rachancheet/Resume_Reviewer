@@ -2,14 +2,12 @@
 
 import React, { useState } from 'react'
 import { UserPlus, Mail, AlertCircle, CheckCircle } from 'lucide-react'
-import { useAuth } from '@/hooks/useAuth'
-
 interface AdminInviteFormProps {
+  user: any;
   onInviteSuccess?: (email: string) => void
 }
 
-export default function AdminInviteForm({ onInviteSuccess }: AdminInviteFormProps) {
-  const { user } = useAuth()
+export default function AdminInviteForm({ user, onInviteSuccess }: AdminInviteFormProps) {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-// import { useRouter } from 'next/navigation' // Not used yet
-import { useAuth } from '@/hooks/useAuth'
+import { useState, useCallback } from 'react'
+import { AuthError } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 import { Mail, ArrowRight, CheckCircle } from 'lucide-react'
 
 export default function LoginPage() {
@@ -10,7 +10,26 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
-  const { signInWithMagicLink } = useAuth()
+
+  const signInWithMagicLink = useCallback(async (email: string): Promise<{ error?: AuthError | null }> => {
+
+    const getURL = () => {
+      let url = process?.env?.NEXT_PUBLIC_SITE_URL ?? process?.env?.NEXT_PUBLIC_VERCEL_URL ??'http://localhost:3000/'
+
+      url = url.startsWith('http') ? url : `https://${url}`
+      url = url.endsWith('/') ? url : `${url}/`
+      return url
+    }
+    
+    // console.log("email redirect to ",getURL())
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+              emailRedirectTo: getURL(),   
+      }
+    })
+    return { error }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

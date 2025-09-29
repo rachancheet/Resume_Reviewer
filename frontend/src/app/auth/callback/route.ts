@@ -17,12 +17,7 @@ export async function GET(request: NextRequest) {
         .eq('id', data.session.user.id)
         .single()
       
-      let redirectPath = next
-      if (profile?.role === 'admin' || profile?.role === 'super_admin') {
-        redirectPath = '/admin'
-      } else if (next === '/') {
-        redirectPath = '/'
-      }
+      const redirectPath = next === '/' ? '/' : next
       
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isLocalEnv = process.env.NODE_ENV === 'development'

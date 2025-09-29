@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS resumes (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    file_name Text NOT NULL,
     file_url TEXT NOT NULL,
     user_name TEXT,
     preview_url TEXT,
@@ -35,8 +36,21 @@ CREATE POLICY "Users can view own profile" ON users
 CREATE POLICY "Users can update own profile" ON users
     FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "Users can insert own profile" ON users
-    FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can insert themselves as user only"
+ON users
+FOR INSERT
+WITH CHECK (
+  id = auth.uid()
+  AND role = 'user'
+);
+
+
+CREATE POLICY "Only service role can insert super_admin"
+ON public.users
+FOR INSERT
+WITH CHECK (
+  role != 'super_admin' OR auth.role() = 'service_role'
+);
 
 -- Create policies for resumes table
 CREATE POLICY "Users can view own resumes" ON resumes
@@ -118,20 +132,20 @@ CREATE TRIGGER update_resumes_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Create function to handle user creation
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO public.users (id, email)
-    VALUES (NEW.id, NEW.email);
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- -- Create function to handle user creation
+-- CREATE OR REPLACE FUNCTION public.handle_new_user()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     INSERT INTO public.users (id, email)
+--     VALUES (NEW.id, NEW.email);
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger for new user creation
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+-- -- Create trigger for new user creation
+-- CREATE TRIGGER on_auth_user_created
+--     AFTER INSERT ON auth.users
+--     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 
 -- Create storage bucket for resumes
@@ -216,88 +230,3 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
-
--- Drop the existing trigger and function first
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP FUNCTION IF EXISTS public.handle_new_user();
-
--- Create a secure function that verifies super admin privileges
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-DECLARE
-    creator_role TEXT;
-    is_service_role BOOLEAN := FALSE;
-BEGIN
-    -- Check if this is being called by service role (server-side operations)
-    BEGIN
-        is_service_role := current_setting('role') = 'service_role';
-    EXCEPTION
-        WHEN OTHERS THEN
-            is_service_role := FALSE;
-    END;
-    
-    -- If user has role metadata, verify it's from a legitimate source
-    IF NEW.raw_user_meta_data ? 'role' THEN
-        -- Only trust role metadata if:
-        -- 1. Called by service role (server-side admin invite API), OR
-        -- 2. The creator is verified as super_admin
-        
-        IF is_service_role THEN
-            -- Service role call - trust the metadata (from admin invite API)
-            INSERT INTO public.users (id, email, role, created_by)
-            VALUES (
-                NEW.id, 
-                NEW.email, 
-                (NEW.raw_user_meta_data->>'role')::text,
-                CASE 
-                    WHEN NEW.raw_user_meta_data ? 'created_by' THEN 
-                        (NEW.raw_user_meta_data->>'created_by')::uuid
-                    ELSE NULL
-                END
-            );
-        ELSIF NEW.raw_user_meta_data ? 'created_by' THEN
-            -- Verify the creator is actually a super admin
-            SELECT role INTO creator_role 
-            FROM public.users 
-            WHERE id = (NEW.raw_user_meta_data->>'created_by')::uuid;
-            
-            IF creator_role = 'super_admin' THEN
-                -- Verified super admin created this - trust the metadata
-                INSERT INTO public.users (id, email, role, created_by)
-                VALUES (
-                    NEW.id, 
-                    NEW.email, 
-                    (NEW.raw_user_meta_data->>'role')::text,
-                    (NEW.raw_user_meta_data->>'created_by')::uuid
-                );
-            ELSE
-                -- Invalid creator or not super admin - create as regular user
-                INSERT INTO public.users (id, email, role)
-                VALUES (NEW.id, NEW.email, 'user');
-                
-                -- Log the security violation attempt
-                RAISE WARNING 'Security violation: Attempted admin role creation by non-super-admin user %', 
-                    COALESCE((NEW.raw_user_meta_data->>'created_by')::text, 'unknown');
-            END IF;
-        ELSE
-            -- Role metadata without creator - suspicious, create as regular user
-            INSERT INTO public.users (id, email, role)
-            VALUES (NEW.id, NEW.email, 'user');
-            
-            -- Log the security violation attempt
-            RAISE WARNING 'Security violation: Attempted admin role creation without creator verification for user %', NEW.email;
-        END IF;
-    ELSE
-        -- No role metadata - normal user signup
-        INSERT INTO public.users (id, email, role)
-        VALUES (NEW.id, NEW.email, 'user');
-    END IF;
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Recreate the trigger
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
