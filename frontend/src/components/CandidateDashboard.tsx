@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { FileText, CheckCircle, Clock, XCircle, Eye, Download, Star, Award, Trophy, Medal } from "lucide-react";
+import { FileText, CheckCircle, Clock, XCircle, Eye, Download, Star, Award, Trophy, Medal, Trash2 } from "lucide-react";
 import { ResumeService } from "@/lib/resume-service";
 import FileUpload from "@/components/FileUpload";
 import type { Resume } from "@/lib/supabase";
@@ -149,6 +149,28 @@ export default function CandidateDashboard({ user }: CandidateDashboardProps) {
       console.error('Download failed:', error);
       setError('Failed to download resume. Please try again.');
       window.open(resume.file_url, '_blank');
+    }
+  };
+
+  const handleDelete = async (resume: Resume) => {
+    if (!confirm(`Are you sure you want to delete "${resume.file_name || 'this resume'}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setError('');
+      const { error: deleteError } = await ResumeService.deleteResume(resume.id, resume.file_url);
+      
+      if (deleteError) {
+        setError(deleteError);
+      } else {
+        setMessage('Resume deleted successfully!');
+        await loadResumes();
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      setError('Failed to delete resume. Please try again.');
     }
   };
 
@@ -320,6 +342,13 @@ export default function CandidateDashboard({ user }: CandidateDashboardProps) {
                                 title="Download resume"
                               >
                                 <Download className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(resume)}
+                                className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                                title="Delete resume"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </div>

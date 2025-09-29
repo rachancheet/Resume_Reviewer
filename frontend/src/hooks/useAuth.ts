@@ -26,11 +26,11 @@ export function useAuth() {
         .select('*')
         .eq('id', userId)
         .single()
-      console.log("got user profile",data)
+      console.log("got user profile", data)
 
       if (error) {
         console.error('Error fetching user profile:', error)
-       
+
         return null
       }
 
