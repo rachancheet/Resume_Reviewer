@@ -19,12 +19,7 @@ import type { Resume } from "@/lib/supabase";
 import ReviewModal from "@/components/ReviewModal";
 import AdminInviteForm from "@/components/AdminInviteForm";
 
-interface AuthUser {
-  id: string;
-  email: string;
-  display_name?: string | null;
-  profile?: User | null;
-}
+import type { AuthUser } from "@/hooks/useAuth";
 
 interface AdminDashboardProps {
   user: AuthUser;

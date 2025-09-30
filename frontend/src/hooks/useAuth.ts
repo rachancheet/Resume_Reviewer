@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { User } from '@/lib/supabase'
 
 
-interface AuthUser {
+export interface AuthUser {
   id: string;
   email: string;
   display_name?: string | null;

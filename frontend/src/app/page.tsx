@@ -3,19 +3,14 @@
 import { FileText, LogOut } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, type AuthUser } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@/lib/supabase";
 import CandidateDashboard from "@/components/CandidateDashboard";
 import AdminDashboard from "@/components/AdminDashboard";
 
-interface AuthUser {
-  id: string;
-  email: string;
-  display_name?: string | null;
-  profile?: User | null;
-}
+// AuthUser type now imported from hooks/useAuth to avoid duplicate definitions
 
 export default function Dashboard() {
   const { getUser } = useAuth();

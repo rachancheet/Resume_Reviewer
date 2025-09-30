@@ -7,14 +7,9 @@ import { supabase } from "@/lib/supabase";
 import FileUpload from "@/components/FileUpload";
 import ResumeViewModal from "@/components/ResumeViewModal";
 import type { Resume } from "@/lib/supabase";
-import { User } from "@supabase/supabase-js";
+import type { AuthUser } from "@/hooks/useAuth";
 
-interface AuthUser {
-  id: string;
-  email: string;
-  display_name?: string | null;
-  profile?: User | null;
-}
+// AuthUser type now imported from hooks/useAuth to avoid duplicate definitions
 
 interface CandidateDashboardProps {
   user: AuthUser;
