@@ -92,6 +92,8 @@ CREATE POLICY "Admins can update all resumes" ON resumes
 -- CREATE POLICY "Service role can update all resumes" ON resumes
 --     FOR UPDATE USING (current_setting('role') = 'service_role');
 
+
+-- Causing recursive RLS policy
 -- Admin policy for users table
 -- CREATE POLICY "Admins can view all users" ON users
 --     FOR SELECT USING (
