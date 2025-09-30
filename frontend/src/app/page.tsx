@@ -2,6 +2,7 @@
 
 import { FileText, LogOut } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -26,9 +27,9 @@ export default function Dashboard() {
 
     const loadUser = async () => {
       setLoading(true);
-      console.log("tring to fetch user")
+      // console.log("tring to fetch user")
       const fetchedUser = await getUser();
-      console.log("got user", fetchedUser)
+      // console.log("got user", fetchedUser)
       if (mounted) {
         if (!fetchedUser) {
           console.error('Error fetching user:');
@@ -94,7 +95,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-                <img src="/resume-icon-16.jpg" alt="Resume Platform" className="w-8 h-8" />
+                <Image src="/resume-icon-16.jpg" alt="Resume Platform" width={32} height={32} className="w-8 h-8" />
                 <h1 className="text-xl font-bold text-gray-900">
                   {isAdmin ? "Admin Dashboard" : "Resume Platform"}
                 </h1>

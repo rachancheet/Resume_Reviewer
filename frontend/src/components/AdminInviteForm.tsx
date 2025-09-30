@@ -2,8 +2,15 @@
 
 import React, { useState } from 'react'
 import { UserPlus, Mail, AlertCircle, CheckCircle } from 'lucide-react'
+interface AuthUser {
+  id: string;
+  email: string;
+  display_name?: string | null;
+  profile?: { role: string } | null;
+}
+
 interface AdminInviteFormProps {
-  user: any;
+  user: AuthUser;
   onInviteSuccess?: (email: string) => void
 }
 

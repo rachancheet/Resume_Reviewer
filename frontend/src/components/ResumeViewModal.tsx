@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { X, Star, FileText, Calendar, User, Download, Eye } from 'lucide-react'
+import { X, Star, FileText, Calendar, Download, Eye } from 'lucide-react'
 import type { Resume } from '@/lib/supabase'
 
 interface ResumeViewModalProps {

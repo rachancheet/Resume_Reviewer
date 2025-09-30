@@ -11,7 +11,6 @@ import {
   Star, 
   Users, 
   Search,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown
 } from "lucide-react";
@@ -20,8 +19,15 @@ import type { Resume } from "@/lib/supabase";
 import ReviewModal from "@/components/ReviewModal";
 import AdminInviteForm from "@/components/AdminInviteForm";
 
+interface AuthUser {
+  id: string;
+  email: string;
+  display_name?: string | null;
+  profile?: User | null;
+}
+
 interface AdminDashboardProps {
-  user: any;
+  user: AuthUser;
   isSuperAdmin: () => boolean;
 }
 
@@ -98,7 +104,7 @@ export default function AdminDashboard({ user, isSuperAdmin }: AdminDashboardPro
       
       setShowReviewModal(false);
       setSelectedResume(null);
-    } catch (error) {
+    } catch {
       setError('Failed to update resume status');
     }
   }, [loadStats]);
@@ -145,18 +151,7 @@ export default function AdminDashboard({ user, isSuperAdmin }: AdminDashboardPro
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
 
-  const getStatusIcon = (status: Resume["status"]) => {
-    switch (status) {
-      case "approved":
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case "needs_revision":
-        return <Clock className="w-5 h-5 text-yellow-500" />;
-      case "rejected":
-        return <XCircle className="w-5 h-5 text-red-500" />;
-      default:
-        return <Clock className="w-5 h-5 text-gray-400" />;
-    }
-  };
+
 
   const getStatusBadge = (status: Resume["status"]) => {
     const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";

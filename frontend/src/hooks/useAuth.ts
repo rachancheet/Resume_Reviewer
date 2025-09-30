@@ -13,20 +13,20 @@ interface AuthUser {
 }
 
 export function useAuth() {
-  console.log("useAuth called")
+  // console.log("useAuth called")
   // const [user, setUser] = useState<AuthUser | null>(null)
   // const [loading, setLoading] = useState(true)
   // const initialized = useRef(false)
 
   const fetchUserProfile = useCallback(async (userId: string): Promise<User | null> => {
     try {
-      console.log("trying to fetchuserprofile")
+      // console.log("trying to fetchuserprofile")
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single()
-      console.log("got user profile", data)
+      // console.log("got user profile", data)
 
       if (error) {
         console.error('Error fetching user profile:', error)
@@ -43,13 +43,13 @@ export function useAuth() {
 
   const getUser = useCallback(async (): Promise<AuthUser | null> => {
     try {
-      console.log("trying to getsession()")
+      // console.log("trying to getsession()")
       const {
         data: { session },
         error
       } = await supabase.auth.getSession()
 
-      console.log("got supabase session")
+      // console.log("got supabase session")
 
       if (error) {
         console.error('Error getting session:', error)

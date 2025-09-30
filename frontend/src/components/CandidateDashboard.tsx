@@ -3,12 +3,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { FileText, CheckCircle, Clock, XCircle, Eye, Download, Star, Award, Trophy, Medal, Trash2 } from "lucide-react";
 import { ResumeService } from "@/lib/resume-service";
+import { supabase } from "@/lib/supabase";
 import FileUpload from "@/components/FileUpload";
 import ResumeViewModal from "@/components/ResumeViewModal";
 import type { Resume } from "@/lib/supabase";
+import { User } from "@supabase/supabase-js";
+
+interface AuthUser {
+  id: string;
+  email: string;
+  display_name?: string | null;
+  profile?: User | null;
+}
 
 interface CandidateDashboardProps {
-  user: any;
+  user: AuthUser;
 }
 
 export default function CandidateDashboard({ user }: CandidateDashboardProps) {
@@ -71,6 +80,55 @@ export default function CandidateDashboard({ user }: CandidateDashboardProps) {
     }
   }, [activeTab, leaderboardData.length, loadLeaderboard]);
 
+  // Real-time subscriptions for automatic updates
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('Setting up real-time subscriptions for user:', user.id);
+
+    // Subscribe to resume changes for the current user
+    const resumeSubscription = supabase
+      .channel('user-resumes')
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'resumes',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Resume updated:', payload);
+          loadResumes(); // Reload user's resumes
+        }
+      )
+      .subscribe();
+
+    // Subscribe to any resume changes for leaderboard updates
+    const leaderboardSubscription = supabase
+      .channel('leaderboard-updates')
+      .on('postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'resumes',
+          filter: 'score=not.is.null'
+        },
+        (payload) => {
+          console.log('Leaderboard updated:', payload);
+          if (activeTab === 'leaderboard') {
+            loadLeaderboard(); // Reload leaderboard
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up real-time subscriptions');
+      supabase.removeChannel(resumeSubscription);
+      supabase.removeChannel(leaderboardSubscription);
+    };
+  }, [user, activeTab, loadResumes, loadLeaderboard]);
+
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
     setError('');
@@ -103,7 +161,7 @@ export default function CandidateDashboard({ user }: CandidateDashboardProps) {
         return;
       }
 
-      const { resume, error: createError } = await ResumeService.createResume(user.id, user.display_name || user.profile?.email || user.email || '', fileUrl!, selectedFile.name);
+      const { error: createError } = await ResumeService.createResume(user.id, user.display_name || user.profile?.email || user.email || '', fileUrl!, selectedFile.name);
 
       setUploadProgress(100);
 
@@ -114,7 +172,7 @@ export default function CandidateDashboard({ user }: CandidateDashboardProps) {
         setSelectedFile(null);
         await loadResumes();
       }
-    } catch (error) {
+    } catch {
       setError('Upload failed. Please try again.');
     } finally {
       setUploading(false);
@@ -177,18 +235,7 @@ export default function CandidateDashboard({ user }: CandidateDashboardProps) {
     }
   };
 
-  const getStatusIcon = (status: Resume["status"]) => {
-    switch (status) {
-      case "approved":
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case "needs_revision":
-        return <Clock className="w-5 h-5 text-yellow-500" />;
-      case "rejected":
-        return <XCircle className="w-5 h-5 text-red-500" />;
-      default:
-        return <Clock className="w-5 h-5 text-gray-400" />;
-    }
-  };
+
 
   const getStatusBadge = (status: Resume["status"]) => {
     const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
@@ -406,27 +453,35 @@ export default function CandidateDashboard({ user }: CandidateDashboardProps) {
                 <>
                   {user && leaderboardData.length > 0 && (
                     <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Star className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm font-medium text-blue-800">Your Current Ranking</span>
-                      </div>
                       {(() => {
                         const userIdentifier = user.display_name || user.profile?.email || user.email;
                         const userRanking = leaderboardData.find(item => item.email === userIdentifier);
-                        if (userRanking) {
-                          return (
-                            <p className="text-xs text-blue-700">
-                              You&apos;re currently ranked #{userRanking.rank} with a score of {userRanking.score}/100.
-                              {userRanking.rank === 1 ? ' Congratulations on the top spot!' : ' Keep improving to climb higher!'}
-                            </p>
-                          );
-                        } else {
-                          return (
-                            <p className="text-xs text-blue-700">
-                              Submit a resume and get it reviewed to appear on the leaderboard!
-                            </p>
-                          );
-                        }
+
+                        return (
+                          <>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Star className="w-4 h-4 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-800">
+                                Your Current Ranking
+                                {userRanking && (
+                                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
+                                    #{userRanking.rank}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                            {userRanking ? (
+                              <p className="text-xs text-blue-700">
+                                with a score of {userRanking.score}/100.
+                                {userRanking.rank === 1 ? ' Congratulations on the top spot!' : ' Keep improving to climb higher!'}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-blue-700">
+                                Submit a resume and get it reviewed to appear on the leaderboard!
+                              </p>
+                            )}
+                          </>
+                        );
                       })()}
                     </div>
                   )}

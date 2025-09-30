@@ -21,7 +21,10 @@ export default function LoginPage() {
       return url
     }
     
-    const options: any = {
+    const options: {
+      emailRedirectTo: string;
+      data?: { display_name: string };
+    } = {
       emailRedirectTo: getURL(),
     }
 
@@ -62,6 +65,39 @@ export default function LoginPage() {
     setMessage('')
 
     try {
+      // Check if user exists using API route
+      const checkResponse = await fetch('/api/auth/check-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const checkData = await checkResponse.json()
+
+      if (!checkResponse.ok) {
+        setMessage(checkData.error || 'Unable to verify email. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      const userExists = checkData.exists
+
+      // Validate based on sign in vs sign up
+      if (isSignUp && userExists) {
+        setMessage('This email is already registered. Please use the Sign In option instead.')
+        setLoading(false)
+        return
+      }
+
+      if (!isSignUp && !userExists) {
+        setMessage('This email is not registered. Please use the Sign Up option to create an account.')
+        setLoading(false)
+        return
+      }
+
+      // Proceed with magic link if validation passes
       const { error } = await signInWithMagicLink(email, isSignUp ? name.trim() : undefined)
       
       if (error) {
