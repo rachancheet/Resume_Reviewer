@@ -1,46 +1,63 @@
 # Resume Submission and Review Platform
 
-A modern web-based platform where users can upload their resumes and track review status, with an admin dashboard for reviewing and scoring submissions.
+A production-ready resume intake and review system. Candidates upload PDFs and track status; admins review, score, and leave notes with an efficient workflow. Built on a modern, typed stack and deployable to Vercel in minutes.
 
-## 🚀 Features
+## 🚀 Highlights
 
-- **User Dashboard**
-  - Magic Link Authentication (passwordless)
-  - Drag & Drop Resume Upload
-  - PDF validation and file size checking
-  - Resume status tracking (Pending, Approved, Needs Revision, Rejected)
-  - File preview and download
-  - Leaderboard view
+- **Delightful candidate experience**
+  - Passwordless Magic Link auth
+  - Drag‑and‑drop PDF upload with client‑side validation
+  - Status updates (Pending, Approved, Needs Revision, Rejected)
+  - In‑browser preview and one‑click download
+  - Public leaderboard
 
-- **Admin Dashboard**
-  - View all submitted resumes
-  - Review and score resumes
-  - Status management with notes
-  - Advanced filtering and search
-  - Real-time statistics
-  - PDF preview and download
+- **Fast reviewer workflow**
+  - Unified review queue with filters and search
+  - One‑click status changes, 0‑100 scoring, and notes
+  - Clear stats and activity awareness
+  - Inline preview and direct download
 
-- **Security & Performance**
-  - Row Level Security (RLS) with Supabase
-  - File upload to Supabase Storage
-  - TypeScript for type safety
-  - Responsive design with Tailwind CSS
+- **Secure by default**
+  - Row Level Security (RLS) + policies
+  - Private Storage with signed URLs
+  - Strict TypeScript across client and API
+  - Production‑grade Next.js 15 + React 19
 
 ## 🛠 Tech Stack
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Backend**: Supabase (Database, Auth, Storage)
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript
+- **Backend**: Supabase (Postgres, Auth, Storage)
 - **Styling**: Tailwind CSS
-- **File Handling**: React Dropzone, React PDF
-- **Icons**: Lucide React
+- **File Handling**: react-dropzone, react-pdf
+- **Icons**: lucide-react
 - **Deployment**: Vercel
 
-## 📦 Installation
+## 🧱 Architecture at a Glance
+
+- App Router with serverless routes under `src/app/api/*`
+- SSR‑friendly Supabase client (`src/lib/supabase.ts`, `src/lib/supabase-server.ts`)
+- Typed database models collocated with client helpers
+- Clear request/response flows for updates and leaderboard
+- Clear separation of concerns: UI components, hooks, and services
+
+```mermaid
+flowchart TD
+  A[Client: Next.js App] -->|Magic Link| B[Supabase Auth]
+  A -->|Upload PDF| C[Supabase Storage]
+  A -->|CRUD| D[(Postgres / RLS)]
+  %% Realtime removed
+  A -->|Admin Invite| E[/API Route: /api/admin/invite/]
+  A -->|Leaderboard| F[/API Route: /api/leaderboard/]
+  A -->|Auth Check| G[/API Route: /api/auth/check-user/]
+```
+
+
+## 📦 Quickstart
 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd Frontend
+   cd frontend
    ```
 
 2. **Install dependencies**
@@ -66,34 +83,39 @@ A modern web-based platform where users can upload their resumes and track revie
    npm run dev
    ```
 
-6. **Open [http://localhost:3000](http://localhost:3000)**
+6. **Open**: [http://localhost:3000](http://localhost:3000)
+
+## 👥 Roles & Permissions
+
+- **Candidate**: Upload, preview, download own resumes; track status; appear on leaderboard once scored.
+- **Admin**: Review all resumes, update status, score, leave notes, view stats.
+- **Super Admin**: All admin capabilities plus admin invite via secure API route.
+
+Admin invite is performed via the admin dashboard, which calls a protected route with server‑side policy checks.
 
 ## 🗄 Database Setup
 
 Run the provided SQL schema in your Supabase SQL editor to create:
 
-- **Users Table**: Store user profiles
-- **Resumes Table**: Store resume metadata and status
-- **Reviews Table**: Track review history
-- **Storage Bucket**: For PDF file storage
-- **Row Level Security**: Proper access controls
-- **Triggers**: Auto-update timestamps
+- `users`: Profiles with roles `user | admin | super_admin`
+- `resumes`: Metadata, file URLs, status, score, notes
+- `reviews`: Audit trail for scoring/notes (optional)
+- Storage bucket: PDF assets (private by default)
+- RLS policies: Least‑privilege access for users and admins
+- Triggers: Timestamps and helpful defaults
 
 ## 🔐 Authentication
 
-The platform uses Supabase Magic Link authentication:
-- Users sign in with their email
-- Secure, passwordless authentication
-- Automatic user profile creation
-- Session management
+Passwordless authentication via Supabase Magic Links:
+- Email‑based sign‑in with secure, expiring links
+- Automatic profile creation and session management
+- Serverless callback route wired for App Router
 
 ## 📁 File Upload
 
-- **Supported formats**: PDF only
-- **File size limit**: 10MB
-- **Validation**: Client and server-side
-- **Storage**: Supabase Storage with proper access controls
-- **Preview**: Direct PDF viewing in browser
+- PDF‑only, 10MB limit, client‑side validation
+- Uploaded to Supabase Storage with scoped access
+- In‑browser preview and reliable downloads
 
 ## 🎯 User Flow
 
@@ -110,31 +132,23 @@ The platform uses Supabase Magic Link authentication:
 4. **Add Notes**: Provide feedback for candidates
 5. **Track Statistics**: Monitor overall submission metrics
 
-## 🚀 Deployment
+## 🔒 Security Model
 
-### Vercel Deployment
+- RLS enforced on all tables; policies restrict records to owners or admins
+- Signed URLs for controlled file access to private storage
+- Minimal surface API; privileged actions are server‑side routes only
+- HTTP security headers set via `vercel.json` (e.g., X-Frame-Options, X-Content-Type-Options)
+- Input validation on both client and server boundaries
 
-1. **Connect to Vercel**
-   ```bash
-   npm i -g vercel
-   vercel
-   ```
 
-2. **Set Environment Variables**
-   Add the same environment variables in Vercel dashboard
 
-3. **Configure Build**
-   - Build Command: `npm run build`
-   - Output Directory: `.next`
-   - Install Command: `npm install`
 
-### Environment Variables for Production
+## 🔁 Comparison (Why this approach?)
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-```
+- Next.js + Supabase: fastest path to a typed, real‑time production app
+- App Router + serverless routes: minimal backend boilerplate
+
+
 
 ## 🔧 Configuration
 
@@ -155,7 +169,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
    - Enable RLS on all tables
    - Configure proper policies
 
-## 📊 Features in Detail
+## 📊 Feature Deep‑Dive
 
 ### File Upload Component
 - Drag & drop interface
@@ -178,67 +192,12 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 - Input validation
 - XSS protection
 
-## 🚧 Future Improvements
 
-- **Email Notifications**: Notify users when status changes
-- **Bulk Operations**: Multi-select for admin actions
-- **Resume Parsing**: Extract text content for better search
-- **Analytics Dashboard**: Detailed reporting and metrics
-- **Comment System**: Thread-based feedback
-- **Version Control**: Track resume revisions
-- **Integration**: Connect with HR systems
-- **Mobile App**: React Native version
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Upload Fails**
-   - Check file size (max 10MB)
-   - Ensure PDF format
-   - Verify Supabase storage permissions
-
-2. **Authentication Issues**
-   - Check email provider settings
-   - Verify Supabase auth configuration
-   - Check browser cookies/localStorage
-
-3. **Database Errors**
-   - Verify RLS policies
-   - Check environment variables
-   - Ensure schema is properly applied
-
-### Debug Tips
-
-- Check browser console for errors
-- Verify Supabase dashboard for logs
-- Use network tab to inspect requests
-- Check environment variables
 
 ## 📝 API Routes
 
-- `GET /auth/callback` - Handle auth callbacks
-- All other operations use Supabase client-side
+- `GET /auth/callback` — Auth callback handler
+- `POST /api/admin/invite` — Invite new admin (super admin only)
+- `GET /api/leaderboard` — Public leaderboard data
+- `GET /api/auth/check-user` — Server‑side auth guard helper
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-This project is for educational/evaluation purposes.
-
-## 📞 Support
-
-For issues or questions:
-- Check the troubleshooting section
-- Review Supabase documentation
-- Create an issue in the repository
-
----
-
-Built with ❤️ using Next.js and Supabase

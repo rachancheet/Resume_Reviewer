@@ -75,54 +75,54 @@ export default function CandidateDashboard({ user }: CandidateDashboardProps) {
     }
   }, [activeTab, leaderboardData.length, loadLeaderboard]);
 
-  // Real-time subscriptions for automatic updates
-  useEffect(() => {
-    if (!user) return;
+  // // Real-time subscriptions for automatic updates
+  // useEffect(() => {
+  //   if (!user) return;
 
-    console.log('Setting up real-time subscriptions for user:', user.id);
+  //   console.log('Setting up real-time subscriptions for user:', user.id);
 
-    // Subscribe to resume changes for the current user
-    const resumeSubscription = supabase
-      .channel('user-resumes')
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'resumes',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('Resume updated:', payload);
-          loadResumes(); // Reload user's resumes
-        }
-      )
-      .subscribe();
+  //   // Subscribe to resume changes for the current user
+  //   const resumeSubscription = supabase
+  //     .channel('user-resumes')
+  //     .on('postgres_changes',
+  //       {
+  //         event: '*',
+  //         schema: 'public',
+  //         table: 'resumes',
+  //         filter: `user_id=eq.${user.id}`
+  //       },
+  //       (payload) => {
+  //         console.log('Resume updated:', payload);
+  //         loadResumes(); // Reload user's resumes
+  //       }
+  //     )
+  //     .subscribe();
 
-    // Subscribe to any resume changes for leaderboard updates
-    const leaderboardSubscription = supabase
-      .channel('leaderboard-updates')
-      .on('postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'resumes',
-          filter: 'score=not.is.null'
-        },
-        (payload) => {
-          console.log('Leaderboard updated:', payload);
-          if (activeTab === 'leaderboard') {
-            loadLeaderboard(); // Reload leaderboard
-          }
-        }
-      )
-      .subscribe();
+  //   // Subscribe to any resume changes for leaderboard updates
+  //   const leaderboardSubscription = supabase
+  //     .channel('leaderboard-updates')
+  //     .on('postgres_changes',
+  //       {
+  //         event: 'UPDATE',
+  //         schema: 'public',
+  //         table: 'resumes',
+  //         filter: 'score=not.is.null'
+  //       },
+  //       (payload) => {
+  //         console.log('Leaderboard updated:', payload);
+  //         if (activeTab === 'leaderboard') {
+  //           loadLeaderboard(); // Reload leaderboard
+  //         }
+  //       }
+  //     )
+  //     .subscribe();
 
-    return () => {
-      console.log('Cleaning up real-time subscriptions');
-      supabase.removeChannel(resumeSubscription);
-      supabase.removeChannel(leaderboardSubscription);
-    };
-  }, [user, activeTab, loadResumes, loadLeaderboard]);
+  //   return () => {
+  //     console.log('Cleaning up real-time subscriptions');
+  //     supabase.removeChannel(resumeSubscription);
+  //     supabase.removeChannel(leaderboardSubscription);
+  //   };
+  // }, [user, activeTab, loadResumes, loadLeaderboard]);
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
