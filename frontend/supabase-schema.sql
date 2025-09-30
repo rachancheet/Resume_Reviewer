@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS resumes (
     file_name Text NOT NULL,
     file_url TEXT NOT NULL,
     user_name TEXT,
+    user_email TEXT,
     preview_url TEXT,
     status TEXT CHECK (status IN ('pending', 'approved', 'needs_revision', 'rejected')) DEFAULT 'pending',
     score INTEGER CHECK (score >= 0 AND score <= 100),
@@ -135,7 +136,7 @@ CREATE TRIGGER update_resumes_updated_at
 -- -- Create function to handle user creation
 -- CREATE OR REPLACE FUNCTION public.handle_new_user()
 -- RETURNS TRIGGER AS $$
--- BEGIN
+-- BEGI
 --     INSERT INTO public.users (id, email)
 --     VALUES (NEW.id, NEW.email);
 --     RETURN NEW;
@@ -231,3 +232,84 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 
+
+
+
+-- Enable pg_net extension (for http requests)
+create extension if not exists pg_net;
+
+-- Function to notify Supabase Edge Function
+create or replace function notify_resume_status_change()
+returns trigger as $$
+declare
+  user_email text;
+begin
+  if new.status is distinct from old.status then
+    -- Get user email
+    select email into user_email from users where id = new.user_id;
+
+    -- Call Edge Function webhook
+    perform
+      net.http_post(
+        url := 'https://<YOUR_PROJECT>.functions.supabase.co/resume-status-change',
+        body := json_build_object(
+          'resume_id', new.id,
+          'user_id', new.user_id,
+          'email', user_email,
+          'new_status', new.status
+        )::text,
+        headers := json_build_object('Content-Type','application/json')
+      );
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Attach trigger
+drop trigger if exists on_resume_status_change on resumes;
+
+create trigger on_resume_status_change
+after update of status on resumes
+for each row
+execute function notify_resume_status_change();
+
+
+
+
+
+
+-- Enable extension (run once)
+create extension if not exists "pg_net";
+
+-- Function called by trigger
+create or replace function public.notify_resume_update()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  -- Build payload: old & new rows
+  perform net.http_post(
+    url := 'https://<your-project>.supabase.co/functions/v1/resume-update',  -- replace
+    body := jsonb_build_object(
+      'old', to_jsonb(OLD),
+      'new', to_jsonb(NEW)
+    ),
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'X-Supabase-Event-Signature', '<YOUR_DB_WEBHOOK_SECRET>'  -- replace with same secret used by Edge Function
+    ),
+    timeout_milliseconds := 5000
+  );
+
+  return NEW;
+end;
+$$;
+
+-- Trigger on UPDATE only (fires AFTER update)
+create trigger trg_resumes_update
+after update on public.resumes
+for each row
+when (OLD IS DISTINCT FROM NEW)
+execute function public.notify_resume_update();
+   

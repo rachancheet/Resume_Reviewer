@@ -41,13 +41,14 @@ export class ResumeService {
   }
 
   // Create resume record in database
-  static async createResume(userId: string, username: string, fileUrl: string, originalFileName: string): Promise<{ resume?: Resume; error?: string }> {
+  static async createResume(userId: string, username: string, fileUrl: string, originalFileName: string, userEmail?: string): Promise<{ resume?: Resume; error?: string }> {
     try {
       const { data, error } = await supabase
         .from('resumes')
         .insert({
           user_id: userId,
           user_name: username,
+          user_email: userEmail,
           file_name: originalFileName,
           file_url: fileUrl,
           status: 'pending'

@@ -156,7 +156,13 @@ export default function CandidateDashboard({ user }: CandidateDashboardProps) {
         return;
       }
 
-      const { error: createError } = await ResumeService.createResume(user.id, user.display_name || user.profile?.email || user.email || '', fileUrl!, selectedFile.name);
+      const { error: createError } = await ResumeService.createResume(
+        user.id,
+        user.display_name || user.profile?.email || user.email || '',
+        fileUrl!,
+        selectedFile.name,
+        user.email || user.profile?.email || undefined
+      );
 
       setUploadProgress(100);
 

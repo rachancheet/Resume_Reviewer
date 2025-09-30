@@ -26,6 +26,7 @@ export interface Resume {
   id: string
   user_id: string
   user_name: string
+  user_email?: string
   file_name: string
   file_url: string
   preview_url?: string

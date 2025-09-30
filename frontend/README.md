@@ -5,6 +5,7 @@ A production-ready resume intake and review system. Candidates upload PDFs and t
 ## 🚀 Highlights
 
 - **Delightful candidate experience**
+  - Email notifications on resume status updates (Approved / Needs Revision / Rejected)
   - Passwordless Magic Link auth
   - Drag‑and‑drop PDF upload with client‑side validation
   - Status updates (Pending, Approved, Needs Revision, Rejected)
@@ -45,10 +46,15 @@ flowchart TD
   A[Client: Next.js App] -->|Magic Link| B[Supabase Auth]
   A -->|Upload PDF| C[Supabase Storage]
   A -->|CRUD| D[(Postgres / RLS)]
-  %% Realtime removed
   A -->|Admin Invite| E[/API Route: /api/admin/invite/]
   A -->|Leaderboard| F[/API Route: /api/leaderboard/]
   A -->|Auth Check| G[/API Route: /api/auth/check-user/]
+
+  %% Email notification path on resume updates
+  D == Update resumes.status ==> T{{DB Trigger: notify_resume_update}}
+  T --> H[/Supabase Edge Function: resume-update/]
+  H --> I[(Email Provider)]
+  I --> U[User Inbox]
 ```
 
 
@@ -148,6 +154,19 @@ Passwordless authentication via Supabase Magic Links:
 - Next.js + Supabase: fastest path to a typed, real‑time production app
 - App Router + serverless routes: minimal backend boilerplate
 
+## 🤔 Why Supabase instead of a custom Express backend?
+
+- **Time‑to‑market**: Auth, Postgres, Storage, and policies are ready‑made. Avoid weeks of boilerplate (auth flows, uploads, RBAC, migrations, health checks).
+- **Security by default**: Row Level Security and policies enforced in the database—safer than piecemeal middleware checks.
+- **First‑class auth**: Passwordless magic links, OAuth providers, sessions, and admin tools out‑of‑the‑box.
+- **Integrated storage**: Private buckets, signed URLs, and lifecycle rules without writing custom S3/GCS middleware.
+- **Operational maturity**: Managed Postgres with backups, PITR, metrics, and observability—no ops pipeline to build.
+- **Type safety**: Generated types and a typed client reduce integration drift compared to ad‑hoc REST + ORM stacks.
+- **DX & tooling**: CLI, dashboard, SQL editor, and quick local dev loop; less infra code to maintain.
+- **Cost & focus**: Fewer services to host and patch; spend time on product, not scaffolding.
+
+When Express is a better fit: heavy custom business logic, complex multi‑service orchestration, non‑standard protocols, or strict control over runtime and network topology.
+
 
 
 ## 🔧 Configuration
@@ -184,6 +203,11 @@ Passwordless authentication via Supabase Magic Links:
 - Note taking
 - Status tracking
 - Bulk operations
+
+### Email Notifications
+- Automatic email on resume status change via Postgres trigger
+- Supabase Edge Function receives webhook and sends email
+- Configurable provider (e.g., SMTP/Resend/SendGrid) via environment variables
 
 ### Security Features
 - Row Level Security
