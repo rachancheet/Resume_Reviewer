@@ -161,29 +161,6 @@ Passwordless authentication via Supabase Magic Links:
    - Enable RLS on all tables
    - Configure proper policies
 
-## 📊 Feature Deep‑Dive
-
-### File Upload Component
-- Drag & drop interface
-- Progress tracking
-- Error handling
-- File validation
-- Preview functionality
-
-### Review System
-- Quick action buttons
-- Custom scoring (0-100)
-- Note taking
-- Status tracking
-- Bulk operations
-
-### Security Features
-- Row Level Security
-- File access controls
-- User authentication
-- Input validation
-- XSS protection
-
 
 
 ## 📝 API Routes
