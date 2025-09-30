@@ -9,11 +9,11 @@ A production-ready resume intake and review system. Candidates upload PDFs and t
   - Passwordless Magic Link auth
   - Drag‑and‑drop PDF upload with client‑side validation
   - Status updates (Pending, Approved, Needs Revision, Rejected)
-  - In‑browser preview and one‑click download
+  - In‑browser preview and download
   - Public leaderboard
 
 - **Fast reviewer workflow**
-  - Unified review queue with filters and search
+  - Review queue with filters and search
   - One‑click status changes, 0‑100 scoring, and notes
   - Clear stats and activity awareness
   - Inline preview and direct download
@@ -140,15 +140,6 @@ Passwordless authentication via Supabase Magic Links:
 - Minimal surface API; privileged actions are server‑side routes only
 - HTTP security headers set via `vercel.json` (e.g., X-Frame-Options, X-Content-Type-Options)
 - Input validation on both client and server boundaries
-
-
-
-
-## 🔁 Comparison (Why this approach?)
-
-- Next.js + Supabase: fastest path to a typed, real‑time production app
-- App Router + serverless routes: minimal backend boilerplate
-
 
 
 ## 🔧 Configuration
